@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegrom</title>
+<title>Telegrom v0.5</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -49,7 +49,7 @@ body{
 }
 
 .sidebar{
-  width:280px;
+  width:290px;
   background:#111827;
   border-right:1px solid #25304d;
   padding:15px;
@@ -96,6 +96,7 @@ button.secondary{
   display:flex;
   justify-content:space-between;
   align-items:center;
+  gap:8px;
 }
 
 .user:hover{
@@ -104,6 +105,27 @@ button.secondary{
 
 .user.active{
   background:#075985;
+}
+
+.user-left{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.user-right{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.unread{
+  background:#ef4444;
+  color:white;
+  border-radius:999px;
+  padding:2px 7px;
+  font-size:12px;
+  font-weight:bold;
 }
 
 .status{
@@ -257,7 +279,7 @@ async function saveUsername(){
 function isGoodUsername(name){
   if(!name) return false;
   if(name.length < 2) return false;
-  if(/^\d+$/.test(name)) return false;
+  if(/^\\d+$/.test(name)) return false;
   return true;
 }
 
@@ -280,7 +302,6 @@ async function saveOrUpdateUser(){
     await db
       .from("telegrom_users")
       .insert([{ username: username, last_seen: now }]);
-
     return;
   }
 
@@ -299,7 +320,7 @@ async function startApp(){
   await loadUsers();
 
   if(!usersTimer){
-    usersTimer = setInterval(loadUsers, 6000);
+    usersTimer = setInterval(loadUsers, 4000);
   }
 
   if(!onlineTimer){
@@ -311,7 +332,34 @@ async function startApp(){
   }
 }
 
+async function getUnreadCounts(){
+  const { data, error } = await db
+    .from("telegrom_private_messages")
+    .select("*")
+    .eq("to_user", username)
+    .eq("is_read", false);
+
+  if(error){
+    console.error(error);
+    return {};
+  }
+
+  const counts = {};
+
+  (data || []).forEach(msg => {
+    if(!counts[msg.from_user]){
+      counts[msg.from_user] = 0;
+    }
+
+    counts[msg.from_user]++;
+  });
+
+  return counts;
+}
+
 async function loadUsers(){
+  const unread = await getUnreadCounts();
+
   const { data, error } = await db
     .from("telegrom_users")
     .select("*")
@@ -322,10 +370,10 @@ async function loadUsers(){
     return;
   }
 
-  renderUsers(data || []);
+  renderUsers(data || [], unread);
 }
 
-function renderUsers(users){
+function renderUsers(users, unread = {}){
   const list = document.getElementById("usersList");
   list.innerHTML = "";
 
@@ -350,15 +398,29 @@ function renderUsers(users){
       div.classList.add("active");
     }
 
-    const nameSpan = document.createElement("span");
-    nameSpan.textContent = "👤 " + user.username;
+    const left = document.createElement("span");
+    left.className = "user-left";
+    left.textContent = "👤 " + user.username;
 
-    const statusSpan = document.createElement("span");
-    statusSpan.className = "status";
-    statusSpan.textContent = isOnline(user.last_seen) ? "🟢" : "⚫";
+    const right = document.createElement("span");
+    right.className = "user-right";
 
-    div.appendChild(nameSpan);
-    div.appendChild(statusSpan);
+    const count = unread[user.username] || 0;
+
+    if(count > 0){
+      const badge = document.createElement("span");
+      badge.className = "unread";
+      badge.textContent = count;
+      right.appendChild(badge);
+    }
+
+    const status = document.createElement("span");
+    status.className = "status";
+    status.textContent = isOnline(user.last_seen) ? "🟢" : "⚫";
+    right.appendChild(status);
+
+    div.appendChild(left);
+    div.appendChild(right);
 
     div.onclick = () => openChat(user.username);
 
@@ -373,7 +435,7 @@ function isOnline(lastSeen){
   return diff < 30000;
 }
 
-function openChat(selectedUser){
+async function openChat(selectedUser){
   friend = selectedUser;
   localStorage.setItem("telegrom_friend", friend);
 
@@ -382,14 +444,34 @@ function openChat(selectedUser){
 
   document.getElementById("sendBox").style.display = "flex";
 
-  loadUsers();
-  loadPrivateMessages();
+  await markMessagesAsRead();
+  await loadUsers();
+  await loadPrivateMessages();
 
   if(messagesTimer){
     clearInterval(messagesTimer);
   }
 
-  messagesTimer = setInterval(loadPrivateMessages, 3000);
+  messagesTimer = setInterval(async () => {
+    await markMessagesAsRead();
+    await loadUsers();
+    await loadPrivateMessages();
+  }, 3000);
+}
+
+async function markMessagesAsRead(){
+  if(!username || !friend) return;
+
+  const { error } = await db
+    .from("telegrom_private_messages")
+    .update({ is_read: true })
+    .eq("from_user", friend)
+    .eq("to_user", username)
+    .eq("is_read", false);
+
+  if(error){
+    console.error(error);
+  }
 }
 
 async function sendPrivateMessage(){
@@ -409,7 +491,8 @@ async function sendPrivateMessage(){
       {
         from_user: username,
         to_user: friend,
-        messages: text
+        messages: text,
+        is_read: false
       }
     ]);
 
@@ -420,7 +503,8 @@ async function sendPrivateMessage(){
   }
 
   input.value = "";
-  loadPrivateMessages();
+  await loadPrivateMessages();
+  await loadUsers();
 }
 
 async function loadPrivateMessages(){
