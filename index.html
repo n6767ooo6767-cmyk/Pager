@@ -93,6 +93,10 @@ button.secondary{
   border-radius:12px;
   margin-bottom:10px;
   cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
 }
 
 .user:hover{
@@ -101,6 +105,10 @@ button.secondary{
 
 .user.active{
   background:#075985;
+}
+
+.dot{
+  font-size:12px;
 }
 
 .chat-title{
@@ -223,6 +231,7 @@ let username = localStorage.getItem("telegrom_username");
 let friend = localStorage.getItem("telegrom_friend");
 let refreshTimer = null;
 let usersTimer = null;
+let onlineTimer = null;
 
 if(username){
   startApp();
@@ -240,6 +249,15 @@ async function saveUsername(){
   username = value;
   localStorage.setItem("telegrom_username", username);
 
+  await saveOrUpdateUser();
+  startApp();
+}
+
+async function saveOrUpdateUser(){
+  if(!username) return;
+
+  const now = new Date().toISOString();
+
   const { data, error } = await db
     .from("telegrom_users")
     .select("*")
@@ -254,27 +272,49 @@ async function saveUsername(){
   if(!data || data.length === 0){
     const { error: insertError } = await db
       .from("telegrom_users")
-      .insert([{ username: username }]);
+      .insert([
+        {
+          username: username,
+          last_seen: now
+        }
+      ]);
 
     if(insertError){
       alert("Ошибка: " + insertError.message);
       console.error(insertError);
-      return;
     }
+
+    return;
   }
 
-  startApp();
+  const { error: updateError } = await db
+    .from("telegrom_users")
+    .update({ last_seen: now })
+    .eq("username", username);
+
+  if(updateError){
+    console.error(updateError);
+  }
 }
 
-function startApp(){
+async function updateOnlineStatus(){
+  await saveOrUpdateUser();
+}
+
+async function startApp(){
   document.getElementById("loginBox").style.display = "none";
   document.getElementById("mainBox").style.display = "flex";
   document.getElementById("currentUserText").textContent = "Ты: " + username;
 
+  await updateOnlineStatus();
   loadUsers();
 
   if(!usersTimer){
     usersTimer = setInterval(loadUsers, 4000);
+  }
+
+  if(!onlineTimer){
+    onlineTimer = setInterval(updateOnlineStatus, 10000);
   }
 
   if(friend){
@@ -286,7 +326,7 @@ async function loadUsers(){
   const { data, error } = await db
     .from("telegrom_users")
     .select("*")
-    .order("created_at", { ascending: true });
+    .order("username", { ascending: true });
 
   if(error){
     console.error(error);
@@ -300,7 +340,9 @@ function renderUsers(users){
   const list = document.getElementById("usersList");
   list.innerHTML = "";
 
-  const filtered = users.filter(user => user.username !== username);
+  const filtered = users
+    .filter(user => user.username !== username)
+    .filter(user => user.username && user.username.length >= 2);
 
   if(filtered.length === 0){
     list.innerHTML = '<div class="small">Пока других пользователей нет.</div>';
@@ -315,11 +357,27 @@ function renderUsers(users){
       div.classList.add("active");
     }
 
-    div.textContent = "👤 " + user.username;
+    const left = document.createElement("span");
+    left.textContent = "👤 " + user.username;
+
+    const right = document.createElement("span");
+    right.className = "dot";
+    right.textContent = isOnline(user.last_seen) ? "🟢" : "⚫";
+
+    div.appendChild(left);
+    div.appendChild(right);
+
     div.onclick = () => openChat(user.username);
 
     list.appendChild(div);
   });
+}
+
+function isOnline(lastSeen){
+  if(!lastSeen) return false;
+
+  const diff = Date.now() - new Date(lastSeen).getTime();
+  return diff < 30000;
 }
 
 function openChat(selectedUser){
