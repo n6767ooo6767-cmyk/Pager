@@ -16,7 +16,7 @@ body{
 }
 
 .app{
-  max-width:850px;
+  max-width:1000px;
   margin:auto;
   height:100vh;
   display:flex;
@@ -38,8 +38,28 @@ body{
   color:#9ca3af;
 }
 
-.login,.user-panel{
+.login{
   padding:20px;
+}
+
+.main{
+  flex:1;
+  display:none;
+  overflow:hidden;
+}
+
+.sidebar{
+  width:280px;
+  background:#111827;
+  border-right:1px solid #25304d;
+  padding:15px;
+  overflow-y:auto;
+}
+
+.content{
+  flex:1;
+  display:flex;
+  flex-direction:column;
 }
 
 input{
@@ -67,17 +87,36 @@ button.secondary{
   color:white;
 }
 
+.user{
+  padding:12px;
+  background:#1d2747;
+  border-radius:12px;
+  margin-bottom:10px;
+  cursor:pointer;
+}
+
+.user:hover{
+  background:#26345f;
+}
+
+.user.active{
+  background:#075985;
+}
+
 .chat-title{
   padding:15px 20px;
   background:#111827;
-  display:none;
 }
 
 .chat{
   flex:1;
   overflow-y:auto;
   padding:20px;
-  display:none;
+}
+
+.empty{
+  color:#9ca3af;
+  padding:20px;
 }
 
 .msg{
@@ -110,7 +149,7 @@ button.secondary{
 }
 
 .send{
-  display:none;
+  display:flex;
   gap:10px;
   padding:15px;
   background:#151b33;
@@ -124,8 +163,17 @@ button.secondary{
   margin:0;
 }
 
-.hidden{
-  display:none;
+@media(max-width:700px){
+  .main{
+    flex-direction:column;
+  }
+
+  .sidebar{
+    width:100%;
+    max-height:220px;
+    border-right:0;
+    border-bottom:1px solid #25304d;
+  }
 }
 </style>
 </head>
@@ -144,21 +192,24 @@ button.secondary{
     <button onclick="saveUsername()">Войти</button>
   </div>
 
-  <div class="user-panel hidden" id="userPanel">
-    <h2>Личные сообщения</h2>
-    <div class="small">Напиши ник человека, которому хочешь отправить сообщение</div>
-    <input id="friendInput" placeholder="Например: vasya">
-    <button onclick="openPrivateChat()">Открыть чат</button>
-    <button class="secondary" onclick="changeUsername()">Сменить мой ник</button>
-  </div>
+  <div class="main" id="mainBox">
+    <div class="sidebar">
+      <h3>Пользователи</h3>
+      <div id="usersList"></div>
+      <button class="secondary" onclick="changeUsername()">Сменить ник</button>
+    </div>
 
-  <div class="chat-title" id="chatTitle"></div>
+    <div class="content">
+      <div class="chat-title" id="chatTitle">Выбери пользователя слева</div>
+      <div class="chat" id="chat">
+        <div class="empty">Личная переписка появится здесь.</div>
+      </div>
 
-  <div class="chat" id="chat"></div>
-
-  <div class="send" id="sendBox">
-    <input id="messageInput" placeholder="Сообщение..." onkeydown="handleEnter(event)">
-    <button onclick="sendPrivateMessage()">Send</button>
+      <div class="send" id="sendBox" style="display:none;">
+        <input id="messageInput" placeholder="Сообщение..." onkeydown="handleEnter(event)">
+        <button onclick="sendPrivateMessage()">Send</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -171,17 +222,13 @@ const db = window.supabase.createClient(
 let username = localStorage.getItem("telegrom_username");
 let friend = localStorage.getItem("telegrom_friend");
 let refreshTimer = null;
+let usersTimer = null;
 
 if(username){
-  showUserPanel();
-
-  if(friend){
-    document.getElementById("friendInput").value = friend;
-    openPrivateChat();
-  }
+  startApp();
 }
 
-function saveUsername(){
+async function saveUsername(){
   const input = document.getElementById("usernameInput");
   const value = input.value.trim();
 
@@ -192,44 +239,97 @@ function saveUsername(){
 
   username = value;
   localStorage.setItem("telegrom_username", username);
-  showUserPanel();
+
+  const { data, error } = await db
+    .from("telegrom_users")
+    .select("*")
+    .eq("username", username);
+
+  if(error){
+    alert("Ошибка: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  if(!data || data.length === 0){
+    const { error: insertError } = await db
+      .from("telegrom_users")
+      .insert([{ username: username }]);
+
+    if(insertError){
+      alert("Ошибка: " + insertError.message);
+      console.error(insertError);
+      return;
+    }
+  }
+
+  startApp();
 }
 
-function showUserPanel(){
+function startApp(){
   document.getElementById("loginBox").style.display = "none";
-  document.getElementById("userPanel").classList.remove("hidden");
+  document.getElementById("mainBox").style.display = "flex";
   document.getElementById("currentUserText").textContent = "Ты: " + username;
+
+  loadUsers();
+
+  if(!usersTimer){
+    usersTimer = setInterval(loadUsers, 4000);
+  }
+
+  if(friend){
+    openChat(friend);
+  }
 }
 
-function changeUsername(){
-  localStorage.removeItem("telegrom_username");
-  localStorage.removeItem("telegrom_friend");
-  location.reload();
-}
+async function loadUsers(){
+  const { data, error } = await db
+    .from("telegrom_users")
+    .select("*")
+    .order("created_at", { ascending: true });
 
-function openPrivateChat(){
-  const input = document.getElementById("friendInput");
-  const value = input.value.trim();
-
-  if(value.length < 2){
-    alert("Ник слишком короткий");
+  if(error){
+    console.error(error);
     return;
   }
 
-  if(value === username){
-    alert("Нельзя открыть чат с самим собой");
+  renderUsers(data || []);
+}
+
+function renderUsers(users){
+  const list = document.getElementById("usersList");
+  list.innerHTML = "";
+
+  const filtered = users.filter(user => user.username !== username);
+
+  if(filtered.length === 0){
+    list.innerHTML = '<div class="small">Пока других пользователей нет.</div>';
     return;
   }
 
-  friend = value;
+  filtered.forEach(user => {
+    const div = document.createElement("div");
+    div.className = "user";
+
+    if(user.username === friend){
+      div.classList.add("active");
+    }
+
+    div.textContent = "👤 " + user.username;
+    div.onclick = () => openChat(user.username);
+
+    list.appendChild(div);
+  });
+}
+
+function openChat(selectedUser){
+  friend = selectedUser;
   localStorage.setItem("telegrom_friend", friend);
 
-  document.getElementById("chatTitle").style.display = "block";
   document.getElementById("chatTitle").textContent = "Личный чат: " + username + " ↔ " + friend;
-
-  document.getElementById("chat").style.display = "block";
   document.getElementById("sendBox").style.display = "flex";
 
+  loadUsers();
   loadPrivateMessages();
 
   if(!refreshTimer){
@@ -240,6 +340,11 @@ function openPrivateChat(){
 async function sendPrivateMessage(){
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
+
+  if(!friend){
+    alert("Сначала выбери пользователя");
+    return;
+  }
 
   if(!text) return;
 
@@ -279,7 +384,7 @@ async function loadPrivateMessages(){
     return;
   }
 
-  renderMessages(data);
+  renderMessages(data || []);
 }
 
 function renderMessages(messages){
@@ -287,7 +392,7 @@ function renderMessages(messages){
   chat.innerHTML = "";
 
   if(!messages || messages.length === 0){
-    chat.innerHTML = '<div class="small">Пока сообщений нет. Напиши первым.</div>';
+    chat.innerHTML = '<div class="empty">Пока сообщений нет. Напиши первым.</div>';
     return;
   }
 
@@ -312,6 +417,12 @@ function addMessageToChat(item){
   `;
 
   chat.appendChild(div);
+}
+
+function changeUsername(){
+  localStorage.removeItem("telegrom_username");
+  localStorage.removeItem("telegrom_friend");
+  location.reload();
 }
 
 function handleEnter(event){
