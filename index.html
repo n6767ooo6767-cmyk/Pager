@@ -3,243 +3,54 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegrom v0.9</title>
+<title>Telegrom v1.0 Auth</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 *{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:Arial,sans-serif;
-  background:#0b1020;
-  color:white;
-}
-
-.app{
-  max-width:1100px;
-  margin:auto;
-  height:100vh;
-  display:flex;
-  flex-direction:column;
-}
-
-.header{
-  padding:18px;
-  background:#151b33;
-  font-size:24px;
-  font-weight:bold;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
+body{margin:0;font-family:Arial,sans-serif;background:#0b1020;color:white}
+.app{max-width:1100px;margin:auto;height:100vh;display:flex;flex-direction:column}
+.header{padding:18px;background:#151b33;font-size:24px;font-weight:bold;display:flex;justify-content:space-between;align-items:center}
 .small{font-size:13px;color:#9ca3af}
-.login{padding:20px}
-
-.main{
-  flex:1;
-  display:none;
-  overflow:hidden;
-}
-
-.sidebar{
-  width:330px;
-  background:#111827;
-  border-right:1px solid #25304d;
-  padding:14px;
-  overflow-y:auto;
-}
-
-.content{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-}
-
-input{
-  width:100%;
-  padding:14px;
-  font-size:16px;
-  border-radius:12px;
-  border:0;
-  margin-top:10px;
-}
-
-button{
-  margin-top:10px;
-  padding:13px 18px;
-  border:0;
-  border-radius:12px;
-  font-weight:bold;
-  cursor:pointer;
-  background:#38bdf8;
-}
-
+.auth{max-width:420px;margin:40px auto;padding:24px;background:#151b33;border-radius:18px}
+.auth h2{margin-top:0}
+input{width:100%;padding:14px;font-size:16px;border-radius:12px;border:0;margin-top:10px}
+button{margin-top:10px;padding:13px 18px;border:0;border-radius:12px;font-weight:bold;cursor:pointer;background:#38bdf8}
 button.secondary{background:#334155;color:white}
 button.danger{background:#ef4444;color:white}
-button.mini{
-  margin:0 0 0 6px;
-  padding:5px 8px;
-  font-size:11px;
-  border-radius:8px;
-  background:#334155;
-  color:white;
-}
-
-.search{
-  margin:8px 0 14px;
-}
-
-.user{
-  padding:11px;
-  background:#1d2747;
-  border-radius:14px;
-  margin-bottom:10px;
-  cursor:pointer;
-  display:flex;
-  gap:10px;
-  align-items:center;
-}
-
+button.mini{margin:0 0 0 6px;padding:5px 8px;font-size:11px;border-radius:8px;background:#334155;color:white}
+.main{flex:1;display:none;overflow:hidden}
+.sidebar{width:330px;background:#111827;border-right:1px solid #25304d;padding:14px;overflow-y:auto}
+.content{flex:1;display:flex;flex-direction:column}
+.search{margin:8px 0 14px}
+.user{padding:11px;background:#1d2747;border-radius:14px;margin-bottom:10px;cursor:pointer;display:flex;gap:10px;align-items:center}
 .user:hover{background:#26345f}
 .user.active{background:#075985}
-
-.avatar{
-  width:42px;
-  height:42px;
-  border-radius:50%;
-  background:linear-gradient(135deg,#38bdf8,#8b5cf6);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:bold;
-  flex:0 0 42px;
-}
-
-.user-main{
-  min-width:0;
-  flex:1;
-}
-
-.user-top{
-  display:flex;
-  justify-content:space-between;
-  gap:8px;
-}
-
-.user-name{
-  font-weight:bold;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-
-.user-preview{
-  color:#9ca3af;
-  font-size:13px;
-  margin-top:4px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-
-.user-right{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:6px;
-  flex:0 0 auto;
-}
-
-.unread{
-  background:#ef4444;
-  color:white;
-  border-radius:999px;
-  padding:2px 7px;
-  font-size:12px;
-  font-weight:bold;
-}
-
-.chat-title{
-  padding:14px 18px;
-  background:#111827;
-  border-bottom:1px solid #25304d;
-}
-
-.typing{
-  color:#8aa3c7;
-  font-size:14px;
-  height:18px;
-  margin-top:4px;
-}
-
-.chat{
-  flex:1;
-  overflow-y:auto;
-  padding:20px;
-}
-
+.avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#8b5cf6);display:flex;align-items:center;justify-content:center;font-weight:bold;flex:0 0 42px}
+.user-main{min-width:0;flex:1}
+.user-top{display:flex;justify-content:space-between;gap:8px}
+.user-name{font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-preview{color:#9ca3af;font-size:13px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.unread{background:#ef4444;color:white;border-radius:999px;padding:2px 7px;font-size:12px;font-weight:bold}
+.chat-title{padding:14px 18px;background:#111827;border-bottom:1px solid #25304d}
+.typing{color:#8aa3c7;font-size:14px;height:18px;margin-top:4px}
+.chat{flex:1;overflow-y:auto;padding:20px}
 .empty{color:#9ca3af;padding:20px}
-
-.msg{
-  background:#1d2747;
-  padding:12px;
-  border-radius:14px;
-  margin-bottom:10px;
-  max-width:76%;
-}
-
-.msg.me{
-  margin-left:auto;
-  background:#075985;
-}
-
-.name{
-  color:#38bdf8;
-  font-weight:bold;
-  margin-bottom:4px;
-}
-
+.msg{background:#1d2747;padding:12px;border-radius:14px;margin-bottom:10px;max-width:76%}
+.msg.me{margin-left:auto;background:#075985}
+.name{color:#38bdf8;font-weight:bold;margin-bottom:4px}
 .msg.me .name{color:#bae6fd}
-
-.text{
-  white-space:pre-wrap;
-  word-break:break-word;
-}
-
-.time{
-  font-size:11px;
-  color:#9ca3af;
-  margin-top:7px;
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  align-items:center;
-}
-
-.actions{
-  white-space:nowrap;
-}
-
-.send{
-  display:flex;
-  gap:10px;
-  padding:15px;
-  background:#151b33;
-}
-
+.text{white-space:pre-wrap;word-break:break-word}
+.time{font-size:11px;color:#9ca3af;margin-top:7px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.actions{white-space:nowrap}
+.send{display:flex;gap:10px;padding:15px;background:#151b33}
 .send input{margin:0}
 .send button{margin:0}
-
 @media(max-width:700px){
   .main{flex-direction:column}
-  .sidebar{
-    width:100%;
-    max-height:260px;
-    border-right:0;
-    border-bottom:1px solid #25304d;
-  }
+  .sidebar{width:100%;max-height:260px;border-right:0;border-bottom:1px solid #25304d}
 }
 </style>
 </head>
@@ -248,13 +59,20 @@ button.mini{
 <div class="app">
   <div class="header">
     <div>💬 Telegrom</div>
-    <div class="small" id="currentUserText"></div>
+    <div>
+      <span class="small" id="currentUserText"></span>
+      <button class="secondary" id="logoutBtn" style="display:none" onclick="logout()">Выйти</button>
+    </div>
   </div>
 
-  <div class="login" id="loginBox">
-    <h2>Введи свой ник</h2>
-    <input id="usernameInput" placeholder="Например: nikon">
-    <button onclick="saveUsername()">Войти</button>
+  <div class="auth" id="authBox">
+    <h2>Вход в Telegrom</h2>
+    <input id="emailInput" type="email" placeholder="Email">
+    <input id="passwordInput" type="password" placeholder="Пароль">
+    <input id="nicknameInput" placeholder="Ник для регистрации, например Nikon">
+    <button onclick="login()">Войти</button>
+    <button class="secondary" onclick="register()">Зарегистрироваться</button>
+    <div class="small" style="margin-top:12px">Для входа нужен email и пароль. Ник нужен только при регистрации.</div>
   </div>
 
   <div class="main" id="mainBox">
@@ -262,7 +80,6 @@ button.mini{
       <h3>Диалоги</h3>
       <input class="search" id="searchInput" placeholder="Поиск..." oninput="renderUsersFromCache()">
       <div id="usersList"></div>
-      <button class="secondary" onclick="changeUsername()">Сменить ник</button>
     </div>
 
     <div class="content">
@@ -289,7 +106,8 @@ const db = window.supabase.createClient(
   "sb_publishable_AAUgqla1G4Xi4N0vk2B9jw_Eg-yj1Jm"
 );
 
-let username = localStorage.getItem("telegrom_username");
+let currentUser = null;
+let username = null;
 let friend = localStorage.getItem("telegrom_friend");
 
 let usersTimer = null;
@@ -301,9 +119,7 @@ let usersCache = [];
 let unreadCache = {};
 let lastMessagesCache = {};
 
-if(username){
-  startApp();
-}
+init();
 
 document.addEventListener("DOMContentLoaded", () => {
   const messageInput = document.getElementById("messageInput");
@@ -312,20 +128,104 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-async function saveUsername(){
-  const input = document.getElementById("usernameInput");
-  const value = input.value.trim();
+async function init(){
+  const { data } = await db.auth.getSession();
 
-  if(!isGoodUsername(value)){
+  if(data.session && data.session.user){
+    currentUser = data.session.user;
+    username = await getOrCreateUsername(currentUser);
+    startApp();
+  }
+}
+
+async function register(){
+  const email = document.getElementById("emailInput").value.trim();
+  const password = document.getElementById("passwordInput").value.trim();
+  const nickname = document.getElementById("nicknameInput").value.trim();
+
+  if(!email || !password){
+    alert("Введи email и пароль");
+    return;
+  }
+
+  if(!isGoodUsername(nickname)){
     alert("Ник должен быть минимум 2 буквы и не только цифры");
     return;
   }
 
-  username = value;
-  localStorage.setItem("telegrom_username", username);
+  const { data, error } = await db.auth.signUp({
+    email: email,
+    password: password,
+    options: {
+      data: {
+        username: nickname
+      }
+    }
+  });
+
+  if(error){
+    alert("Ошибка регистрации: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  if(data.user){
+    currentUser = data.user;
+    username = nickname;
+
+    localStorage.setItem("telegrom_username", username);
+    localStorage.removeItem("telegrom_friend");
+
+    await saveOrUpdateUser();
+    startApp();
+  }else{
+    alert("Проверь email для подтверждения регистрации");
+  }
+}
+
+async function login(){
+  const email = document.getElementById("emailInput").value.trim();
+  const password = document.getElementById("passwordInput").value.trim();
+
+  if(!email || !password){
+    alert("Введи email и пароль");
+    return;
+  }
+
+  const { data, error } = await db.auth.signInWithPassword({
+    email: email,
+    password: password
+  });
+
+  if(error){
+    alert("Ошибка входа: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  currentUser = data.user;
+  username = await getOrCreateUsername(currentUser);
+  startApp();
+}
+
+async function logout(){
+  await db.auth.signOut();
+  localStorage.removeItem("telegrom_username");
+  localStorage.removeItem("telegrom_friend");
+  location.reload();
+}
+
+async function getOrCreateUsername(user){
+  const metaName = user.user_metadata && user.user_metadata.username;
+  const fallback = user.email ? user.email.split("@")[0] : "user";
+  const name = metaName || fallback;
+
+  localStorage.setItem("telegrom_username", name);
+  username = name;
 
   await saveOrUpdateUser();
-  startApp();
+
+  return name;
 }
 
 function isGoodUsername(name){
@@ -362,9 +262,10 @@ async function saveOrUpdateUser(){
 }
 
 async function startApp(){
-  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("authBox").style.display = "none";
   document.getElementById("mainBox").style.display = "flex";
-  document.getElementById("currentUserText").textContent = "Ты: " + username;
+  document.getElementById("logoutBtn").style.display = "inline-block";
+  document.getElementById("currentUserText").textContent = "Ты: " + username + " ";
 
   await saveOrUpdateUser();
   await loadUsers();
@@ -422,7 +323,6 @@ async function getLastMessages(){
 
   (data || []).forEach(msg => {
     const other = msg.from_user === username ? msg.to_user : msg.from_user;
-
     if(!latest[other]){
       latest[other] = msg;
     }
@@ -466,10 +366,8 @@ function renderUsersFromCache(){
   filtered.sort((a,b) => {
     const ma = lastMessagesCache[a.username];
     const mb = lastMessagesCache[b.username];
-
     const ta = ma ? new Date(ma.created_at).getTime() : 0;
     const tb = mb ? new Date(mb.created_at).getTime() : 0;
-
     return tb - ta;
   });
 
@@ -525,7 +423,6 @@ function renderUsersFromCache(){
     }
 
     const status = document.createElement("span");
-    status.className = "status";
     status.textContent = isOnline(user.last_seen) ? "🟢" : "⚫";
     right.appendChild(status);
 
@@ -786,12 +683,6 @@ async function deleteMessage(id){
 
   await loadPrivateMessages();
   await loadUsers();
-}
-
-function changeUsername(){
-  localStorage.removeItem("telegrom_username");
-  localStorage.removeItem("telegrom_friend");
-  location.reload();
 }
 
 function handleEnter(event){
