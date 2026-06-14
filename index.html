@@ -94,9 +94,8 @@ button.secondary{
   margin-bottom:10px;
   cursor:pointer;
   display:flex;
-  align-items:center;
   justify-content:space-between;
-  gap:8px;
+  align-items:center;
 }
 
 .user:hover{
@@ -107,8 +106,8 @@ button.secondary{
   background:#075985;
 }
 
-.dot{
-  font-size:12px;
+.status{
+  font-size:13px;
 }
 
 .chat-title{
@@ -209,6 +208,7 @@ button.secondary{
 
     <div class="content">
       <div class="chat-title" id="chatTitle">Выбери пользователя слева</div>
+
       <div class="chat" id="chat">
         <div class="empty">Личная переписка появится здесь.</div>
       </div>
@@ -229,8 +229,9 @@ const db = window.supabase.createClient(
 
 let username = localStorage.getItem("telegrom_username");
 let friend = localStorage.getItem("telegrom_friend");
-let refreshTimer = null;
+
 let usersTimer = null;
+let messagesTimer = null;
 let onlineTimer = null;
 
 if(username){
@@ -241,8 +242,8 @@ async function saveUsername(){
   const input = document.getElementById("usernameInput");
   const value = input.value.trim();
 
-  if(value.length < 2){
-    alert("Ник слишком короткий");
+  if(!isGoodUsername(value)){
+    alert("Ник должен быть минимум 2 буквы и не только цифры");
     return;
   }
 
@@ -251,6 +252,13 @@ async function saveUsername(){
 
   await saveOrUpdateUser();
   startApp();
+}
+
+function isGoodUsername(name){
+  if(!name) return false;
+  if(name.length < 2) return false;
+  if(/^\d+$/.test(name)) return false;
+  return true;
 }
 
 async function saveOrUpdateUser(){
@@ -264,41 +272,22 @@ async function saveOrUpdateUser(){
     .eq("username", username);
 
   if(error){
-    alert("Ошибка: " + error.message);
     console.error(error);
     return;
   }
 
   if(!data || data.length === 0){
-    const { error: insertError } = await db
+    await db
       .from("telegrom_users")
-      .insert([
-        {
-          username: username,
-          last_seen: now
-        }
-      ]);
-
-    if(insertError){
-      alert("Ошибка: " + insertError.message);
-      console.error(insertError);
-    }
+      .insert([{ username: username, last_seen: now }]);
 
     return;
   }
 
-  const { error: updateError } = await db
+  await db
     .from("telegrom_users")
     .update({ last_seen: now })
     .eq("username", username);
-
-  if(updateError){
-    console.error(updateError);
-  }
-}
-
-async function updateOnlineStatus(){
-  await saveOrUpdateUser();
 }
 
 async function startApp(){
@@ -306,15 +295,15 @@ async function startApp(){
   document.getElementById("mainBox").style.display = "flex";
   document.getElementById("currentUserText").textContent = "Ты: " + username;
 
-  await updateOnlineStatus();
-  loadUsers();
+  await saveOrUpdateUser();
+  await loadUsers();
 
   if(!usersTimer){
-    usersTimer = setInterval(loadUsers, 4000);
+    usersTimer = setInterval(loadUsers, 6000);
   }
 
   if(!onlineTimer){
-    onlineTimer = setInterval(updateOnlineStatus, 10000);
+    onlineTimer = setInterval(saveOrUpdateUser, 10000);
   }
 
   if(friend){
@@ -340,9 +329,13 @@ function renderUsers(users){
   const list = document.getElementById("usersList");
   list.innerHTML = "";
 
-  const filtered = users
-    .filter(user => user.username !== username)
-    .filter(user => user.username && user.username.length >= 2);
+  const filtered = users.filter(user => {
+    return (
+      user.username &&
+      user.username !== username &&
+      isGoodUsername(user.username)
+    );
+  });
 
   if(filtered.length === 0){
     list.innerHTML = '<div class="small">Пока других пользователей нет.</div>';
@@ -357,15 +350,15 @@ function renderUsers(users){
       div.classList.add("active");
     }
 
-    const left = document.createElement("span");
-    left.textContent = "👤 " + user.username;
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent = "👤 " + user.username;
 
-    const right = document.createElement("span");
-    right.className = "dot";
-    right.textContent = isOnline(user.last_seen) ? "🟢" : "⚫";
+    const statusSpan = document.createElement("span");
+    statusSpan.className = "status";
+    statusSpan.textContent = isOnline(user.last_seen) ? "🟢" : "⚫";
 
-    div.appendChild(left);
-    div.appendChild(right);
+    div.appendChild(nameSpan);
+    div.appendChild(statusSpan);
 
     div.onclick = () => openChat(user.username);
 
@@ -384,15 +377,19 @@ function openChat(selectedUser){
   friend = selectedUser;
   localStorage.setItem("telegrom_friend", friend);
 
-  document.getElementById("chatTitle").textContent = "Личный чат: " + username + " ↔ " + friend;
+  document.getElementById("chatTitle").textContent =
+    "Личный чат: " + username + " ↔ " + friend;
+
   document.getElementById("sendBox").style.display = "flex";
 
   loadUsers();
   loadPrivateMessages();
 
-  if(!refreshTimer){
-    refreshTimer = setInterval(loadPrivateMessages, 2000);
+  if(messagesTimer){
+    clearInterval(messagesTimer);
   }
+
+  messagesTimer = setInterval(loadPrivateMessages, 3000);
 }
 
 async function sendPrivateMessage(){
