@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegrom</title>
+<title>Telegrom V1.9 Notifications</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -236,9 +236,10 @@ button.mini{margin:0 0 0 6px;padding:5px 8px;font-size:11px;border-radius:8px;ba
 <body>
 <div class="app">
   <div class="header">
-    <div>💬 Telegrom <span class="small">V1.8 EMOJI</span></div>
+    <div>💬 Telegrom <span class="small">V1.9 NOTIFICATIONS</span></div>
     <div>
       <span class="small" id="currentUserText"></span>
+      <button class="secondary" id="notifyBtn" style="display:none" onclick="enableNotifications()">🔔</button>
       <button class="secondary" id="profileBtn" style="display:none" onclick="openProfile()">Профиль</button>
       <button class="secondary" id="logoutBtn" style="display:none" onclick="logout()">Выйти</button>
     </div>
@@ -348,6 +349,8 @@ let isRecordingVoice = false;
 let usersCache = [];
 let unreadCache = {};
 let lastMessagesCache = {};
+let knownMessageIds = new Set();
+let notificationsEnabled = false;
 let currentTheme = "dark";
 
 const THEME_VALUES = {
@@ -611,12 +614,16 @@ async function startApp(){
   document.getElementById("authBox").style.display = "none";
   document.getElementById("mainBox").style.display = "flex";
   document.getElementById("logoutBtn").style.display = "inline-block";
+  document.getElementById("notifyBtn").style.display = "inline-block";
   document.getElementById("profileBtn").style.display = "inline-block";
   document.getElementById("currentUserText").textContent = "Ты: " + username + " ";
 
   await saveOrUpdateUser();
   await loadThemeFromSettings();
   await loadUsers();
+  await primeKnownMessages();
+
+  setInterval(checkNewIncomingMessages, 3000);
 
   if(!usersTimer){
     usersTimer = setInterval(loadUsers, 4000);
@@ -1583,6 +1590,105 @@ async function loadMessageReactions(messageId){
     const activeBtn = document.getElementById("react_" + messageId + "_" + map[myReaction]);
     if(activeBtn) activeBtn.classList.add("active");
   }
+}
+
+
+
+async function enableNotifications(){
+  if(!("Notification" in window)){
+    alert("Браузер не поддерживает уведомления");
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+
+  if(permission === "granted"){
+    notificationsEnabled = true;
+    alert("Уведомления включены 🔔");
+  }else{
+    alert("Уведомления не разрешены");
+  }
+}
+
+function canNotify(){
+  return (
+    notificationsEnabled &&
+    "Notification" in window &&
+    Notification.permission === "granted" &&
+    document.hidden
+  );
+}
+
+function showMessageNotification(msg){
+  if(!canNotify()) return;
+  if(!msg || msg.from_user === username) return;
+
+  const bodyText = formatNotificationBody(msg.messages);
+
+  const notification = new Notification("Новое сообщение от " + msg.from_user, {
+    body: bodyText,
+    icon: ""
+  });
+
+  notification.onclick = () => {
+    window.focus();
+    openChat(msg.from_user);
+  };
+}
+
+function formatNotificationBody(message){
+  const text = String(message || "");
+
+  if(text.startsWith("[photo]")) return "📷 Фото";
+  if(text.startsWith("[voice]")) return "🎤 Голосовое сообщение";
+  if(text.startsWith("[file]")) {
+    const raw = text.replace("[file]", "").trim();
+    const parts = raw.split("|");
+    return "📎 " + (parts[1] || "Файл");
+  }
+
+  return text.slice(0, 120);
+}
+
+async function checkNewIncomingMessages(){
+  if(!username) return;
+
+  const { data, error } = await db
+    .from("telegrom_private_messages")
+    .select("*")
+    .eq("to_user", username)
+    .order("created_at", { ascending:false })
+    .limit(10);
+
+  if(error){
+    console.error("Ошибка проверки уведомлений:", error);
+    return;
+  }
+
+  (data || []).reverse().forEach(msg => {
+    if(!knownMessageIds.has(msg.id)){
+      knownMessageIds.add(msg.id);
+      showMessageNotification(msg);
+    }
+  });
+}
+
+async function primeKnownMessages(){
+  if(!username) return;
+
+  const { data, error } = await db
+    .from("telegrom_private_messages")
+    .select("id")
+    .eq("to_user", username)
+    .order("created_at", { ascending:false })
+    .limit(50);
+
+  if(error){
+    console.error(error);
+    return;
+  }
+
+  (data || []).forEach(msg => knownMessageIds.add(msg.id));
 }
 
 
