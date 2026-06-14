@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegrom V2.0 Groups</title>
+<title>Telegrom V2.8 Mobile</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -267,13 +267,112 @@ button.mini{margin:0 0 0 6px;padding:5px 8px;font-size:11px;border-radius:8px;ba
   flex:0 0 42px;
 }
 
+
+.back-btn{
+  display:none;
+  margin:0 10px 0 0;
+  padding:8px 12px;
+  border-radius:10px;
+  background:#334155;
+  color:white;
+}
+.chat-title-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+@media(max-width:700px){
+  .app{
+    height:100dvh;
+    max-width:none;
+  }
+
+  .header{
+    padding:12px;
+    font-size:19px;
+  }
+
+  .main{
+    display:flex;
+    position:relative;
+  }
+
+  .sidebar{
+    width:100%;
+    max-height:none;
+    height:100%;
+    border:0;
+    display:block;
+  }
+
+  .content{
+    display:none;
+    width:100%;
+    height:100%;
+  }
+
+  body.mobile-chat-open .sidebar{
+    display:none;
+  }
+
+  body.mobile-chat-open .content{
+    display:flex;
+  }
+
+  .back-btn{
+    display:inline-block;
+  }
+
+  .chat{
+    padding:12px;
+  }
+
+  .msg{
+    max-width:88%;
+  }
+
+  .send{
+    gap:6px;
+    padding:10px;
+  }
+
+  .send button,
+  .photo-btn,
+  .voice-btn,
+  .file-btn,
+  .emoji-btn{
+    min-width:48px;
+    min-height:48px;
+    padding:10px;
+    font-size:18px;
+  }
+
+  .send input{
+    font-size:16px;
+  }
+
+  .user,
+  .group-item{
+    min-height:64px;
+  }
+
+  .auth{
+    margin:20px 12px;
+  }
+
+  .profile-modal{
+    max-height:90dvh;
+    overflow:auto;
+  }
+}
+
 </style>
 </head>
 
 <body>
 <div class="app">
   <div class="header">
-    <div>💬 Telegrom <span class="small">V2.0 GROUPS</span></div>
+    <div>💬 Telegrom <span class="small">V2.8 MOBILE</span></div>
     <div>
       <span class="small" id="currentUserText"></span>
       <button class="secondary" id="notifyBtn" style="display:none" onclick="enableNotifications()">🔔</button>
@@ -305,7 +404,10 @@ button.mini{margin:0 0 0 6px;padding:5px 8px;font-size:11px;border-radius:8px;ba
 
     <div class="content">
       <div class="chat-title">
-        <div id="chatTitle">Выбери пользователя слева</div>
+        <div class="chat-title-row">
+          <button class="back-btn" onclick="backToChats()">←</button>
+          <div id="chatTitle">Выбери пользователя слева</div>
+        </div>
         <div id="typingStatus" class="typing"></div>
       </div>
 
@@ -892,6 +994,7 @@ async function openChat(selectedUser){
   document.getElementById("chatTitle").textContent = "Личный чат: " + username + " ↔ " + friend;
   document.getElementById("typingStatus").textContent = "";
   document.getElementById("sendBox").style.display = "flex";
+  document.body.classList.add("mobile-chat-open");
 
   await markMessagesAsRead();
   await loadUsers();
@@ -1895,6 +1998,7 @@ async function openGroupChat(groupId, groupName){
   document.getElementById("chatTitle").textContent = "👥 Группа: " + groupName;
   document.getElementById("typingStatus").textContent = "";
   document.getElementById("sendBox").style.display = "flex";
+  document.body.classList.add("mobile-chat-open");
 
   await loadGroups();
   await loadGroupMessages();
@@ -1983,6 +2087,11 @@ function renderGroupMessages(messages){
   });
 
   chat.scrollTop = chat.scrollHeight;
+}
+
+
+function backToChats(){
+  document.body.classList.remove("mobile-chat-open");
 }
 
 function handleEnter(event){
