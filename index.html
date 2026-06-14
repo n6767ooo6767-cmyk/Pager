@@ -293,16 +293,18 @@ async function markMessagesAsRead(){
 
   const { error } = await db
     .from("telegrom_private_messages")
-    .update({ unread: false, is_read: true })
+    .update({
+      unread: false,
+      is_read: true
+    })
     .eq("from_user", friend)
-    .eq("to_user", username)
-    .eq("unread", true);
+    .eq("to_user", username);
 
   if(error){
-    console.error(error);
+    console.error("Ошибка markMessagesAsRead:", error);
   }
 }
-
+  
 async function sendPrivateMessage(){
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
