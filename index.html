@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegrom V1.1 Profile</title>
+<title>Telegrom V1.2 Photo</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -100,13 +100,26 @@ button.mini{margin:0 0 0 6px;padding:5px 8px;font-size:11px;border-radius:8px;ba
   white-space:nowrap;
 }
 
+
+.photo-message{
+  max-width:280px;
+  border-radius:12px;
+  margin-top:6px;
+  display:block;
+}
+.photo-btn{
+  background:#334155;
+  color:white;
+  min-width:52px;
+}
+
 </style>
 </head>
 
 <body>
 <div class="app">
   <div class="header">
-    <div>💬 Telegrom <span class="small">V1.1 PROFILE</span></div>
+    <div>💬 Telegrom <span class="small">V1.2 PHOTO</span></div>
     <div>
       <span class="small" id="currentUserText"></span>
       <button class="secondary" id="profileBtn" style="display:none" onclick="openProfile()">Профиль</button>
@@ -142,6 +155,8 @@ button.mini{margin:0 0 0 6px;padding:5px 8px;font-size:11px;border-radius:8px;ba
       </div>
 
       <div class="send" id="sendBox" style="display:none;">
+        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="sendPhotoMessage(event)">
+        <button class="photo-btn" onclick="document.getElementById('photoInput').click()">📷</button>
         <input id="messageInput" placeholder="Сообщение..." onkeydown="handleEnter(event)">
         <button onclick="sendPrivateMessage()">Send</button>
       </div>
@@ -663,6 +678,73 @@ async function checkTyping(){
   el.textContent = diff < 5000 ? friend + " печатает..." : "";
 }
 
+
+async function sendPhotoMessage(event){
+  const file = event.target.files && event.target.files[0];
+
+  if(!friend){
+    alert("Сначала выбери пользователя");
+    event.target.value = "";
+    return;
+  }
+
+  if(!file){
+    return;
+  }
+
+  if(!file.type.startsWith("image/")){
+    alert("Можно отправлять только изображения");
+    event.target.value = "";
+    return;
+  }
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const safeName = Date.now() + "_" + Math.random().toString(36).slice(2) + "." + ext;
+  const path = username + "/" + safeName;
+
+  const { error: uploadError } = await db.storage
+    .from("chat-images")
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false
+    });
+
+  if(uploadError){
+    alert("Ошибка загрузки фото: " + uploadError.message);
+    console.error(uploadError);
+    event.target.value = "";
+    return;
+  }
+
+  const { data } = db.storage
+    .from("chat-images")
+    .getPublicUrl(path);
+
+  const publicUrl = data.publicUrl;
+
+  const { error } = await db
+    .from("telegrom_private_messages")
+    .insert([{
+      from_user: username,
+      to_user: friend,
+      messages: "[photo]" + publicUrl,
+      unread: true,
+      is_read: false
+    }]);
+
+  if(error){
+    alert("Ошибка отправки фото: " + error.message);
+    console.error(error);
+    event.target.value = "";
+    return;
+  }
+
+  event.target.value = "";
+
+  await loadPrivateMessages();
+  await loadUsers();
+}
+
 async function sendPrivateMessage(){
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
@@ -733,9 +815,11 @@ function addMessageToChat(item){
       </span>`
     : "";
 
+  const body = renderMessageBody(item.messages);
+
   div.innerHTML = `
     <div class="name">${escapeHtml(item.from_user)}</div>
-    <div class="text">${escapeHtml(item.messages)}</div>
+    ${body}
     <div class="time">
       <span>${new Date(item.created_at).toLocaleString()}</span>
       ${actions}
@@ -743,6 +827,21 @@ function addMessageToChat(item){
   `;
 
   chat.appendChild(div);
+}
+
+function renderMessageBody(message){
+  const text = String(message || "");
+
+  if(text.startsWith("[photo]")){
+    const url = text.replace("[photo]", "").trim();
+
+    return `
+      <div class="text">📷 Фото</div>
+      <img class="photo-message" src="${escapeHtml(url)}" alt="photo">
+    `;
+  }
+
+  return `<div class="text">${escapeHtml(text)}</div>`;
 }
 
 async function editMessage(id, oldText){
