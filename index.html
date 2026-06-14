@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegrom V1.25 Settings</title>
+<title>Telegrom V1.3 Voice</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -130,13 +130,34 @@ button.mini{margin:0 0 0 6px;padding:5px 8px;font-size:11px;border-radius:8px;ba
   min-width:52px;
 }
 
+
+.voice-btn{
+  background:#334155;
+  color:white;
+  min-width:52px;
+}
+.voice-btn.recording{
+  background:#ef4444;
+  color:white;
+}
+.voice-message{
+  margin-top:6px;
+  width:260px;
+  max-width:100%;
+}
+.recording-text{
+  color:#ef4444;
+  font-size:12px;
+  margin-top:4px;
+}
+
 </style>
 </head>
 
 <body>
 <div class="app">
   <div class="header">
-    <div>💬 Telegrom <span class="small">V1.25 SETTINGS</span></div>
+    <div>💬 Telegrom <span class="small">V1.3 VOICE</span></div>
     <div>
       <span class="small" id="currentUserText"></span>
       <button class="secondary" id="profileBtn" style="display:none" onclick="openProfile()">Профиль</button>
@@ -174,6 +195,7 @@ button.mini{margin:0 0 0 6px;padding:5px 8px;font-size:11px;border-radius:8px;ba
       <div class="send" id="sendBox" style="display:none;">
         <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="sendPhotoMessage(event)">
         <button class="photo-btn" onclick="document.getElementById('photoInput').click()">📷</button>
+        <button class="voice-btn" id="voiceBtn" onclick="toggleVoiceRecording()">🎤</button>
         <input id="messageInput" placeholder="Сообщение..." onkeydown="handleEnter(event)">
         <button onclick="sendPrivateMessage()">Send</button>
       </div>
@@ -238,6 +260,9 @@ let usersTimer = null;
 let messagesTimer = null;
 let onlineTimer = null;
 let typingCooldown = false;
+let mediaRecorder = null;
+let voiceChunks = [];
+let isRecordingVoice = false;
 
 let usersCache = [];
 let unreadCache = {};
@@ -888,6 +913,112 @@ async function sendPhotoMessage(event){
   await loadUsers();
 }
 
+
+async function toggleVoiceRecording(){
+  if(!friend){
+    alert("Сначала выбери пользователя");
+    return;
+  }
+
+  if(isRecordingVoice){
+    stopVoiceRecording();
+    return;
+  }
+
+  await startVoiceRecording();
+}
+
+async function startVoiceRecording(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+
+    voiceChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = event => {
+      if(event.data && event.data.size > 0){
+        voiceChunks.push(event.data);
+      }
+    };
+
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(voiceChunks, { type:"audio/webm" });
+
+      stream.getTracks().forEach(track => track.stop());
+
+      await uploadVoiceMessage(blob);
+    };
+
+    mediaRecorder.start();
+    isRecordingVoice = true;
+
+    const btn = document.getElementById("voiceBtn");
+    btn.textContent = "⏹";
+    btn.classList.add("recording");
+
+  }catch(error){
+    alert("Микрофон не доступен: " + error.message);
+    console.error(error);
+  }
+}
+
+function stopVoiceRecording(){
+  if(mediaRecorder && isRecordingVoice){
+    mediaRecorder.stop();
+  }
+
+  isRecordingVoice = false;
+
+  const btn = document.getElementById("voiceBtn");
+  btn.textContent = "🎤";
+  btn.classList.remove("recording");
+}
+
+async function uploadVoiceMessage(blob){
+  const safeName = Date.now() + "_" + Math.random().toString(36).slice(2) + ".webm";
+  const path = username + "/" + safeName;
+
+  const { error: uploadError } = await db.storage
+    .from("voice-messages")
+    .upload(path, blob, {
+      cacheControl:"3600",
+      upsert:false,
+      contentType:"audio/webm"
+    });
+
+  if(uploadError){
+    alert("Ошибка загрузки голосового: " + uploadError.message);
+    console.error(uploadError);
+    return;
+  }
+
+  const { data } = db.storage
+    .from("voice-messages")
+    .getPublicUrl(path);
+
+  const publicUrl = data.publicUrl;
+
+  const { error } = await db
+    .from("telegrom_private_messages")
+    .insert([{
+      from_user:username,
+      to_user:friend,
+      messages:"[voice]" + publicUrl,
+      unread:true,
+      is_read:false
+    }]);
+
+  if(error){
+    alert("Ошибка отправки голосового: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  await loadPrivateMessages();
+  await loadUsers();
+}
+
+
 async function sendPrivateMessage(){
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
@@ -981,6 +1112,15 @@ function renderMessageBody(message){
     return `
       <div class="text">📷 Фото</div>
       <img class="photo-message" src="${escapeHtml(url)}" alt="photo">
+    `;
+  }
+
+  if(text.startsWith("[voice]")){
+    const url = text.replace("[voice]", "").trim();
+
+    return `
+      <div class="text">🎤 Голосовое сообщение</div>
+      <audio class="voice-message" controls src="${escapeHtml(url)}"></audio>
     `;
   }
 
