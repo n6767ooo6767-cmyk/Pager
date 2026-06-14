@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegrom V1.9 Notifications</title>
+<title>Telegrom V2.0 Groups</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -230,13 +230,50 @@ button.mini{margin:0 0 0 6px;padding:5px 8px;font-size:11px;border-radius:8px;ba
  display:inline-block;
 }
 
+
+.group-create{
+  width:100%;
+  margin:8px 0 12px;
+}
+.section-title{
+  margin-top:16px;
+  margin-bottom:8px;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:bold;
+  text-transform:uppercase;
+}
+.group-item{
+  padding:11px;
+  background:var(--card);
+  border-radius:14px;
+  margin-bottom:10px;
+  cursor:pointer;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.group-item:hover{background:var(--card-hover)}
+.group-item.active{background:var(--active)}
+.group-badge{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#facc15,#f97316);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  flex:0 0 42px;
+}
+
 </style>
 </head>
 
 <body>
 <div class="app">
   <div class="header">
-    <div>💬 Telegrom <span class="small">V1.9 NOTIFICATIONS</span></div>
+    <div>💬 Telegrom <span class="small">V2.0 GROUPS</span></div>
     <div>
       <span class="small" id="currentUserText"></span>
       <button class="secondary" id="notifyBtn" style="display:none" onclick="enableNotifications()">🔔</button>
@@ -258,8 +295,12 @@ button.mini{margin:0 0 0 6px;padding:5px 8px;font-size:11px;border-radius:8px;ba
   <div class="main" id="mainBox">
     <div class="sidebar">
       <h3>Диалоги</h3>
+      <button class="secondary group-create" onclick="createGroup()">👥 Создать группу</button>
       <input class="search" id="searchInput" placeholder="Поиск..." oninput="renderUsersFromCache()">
+      <div class="section-title">Личные</div>
       <div id="usersList"></div>
+      <div class="section-title">Группы</div>
+      <div id="groupsList"></div>
     </div>
 
     <div class="content">
@@ -337,6 +378,9 @@ const db = window.supabase.createClient(
 let currentUser = null;
 let username = null;
 let friend = localStorage.getItem("telegrom_friend");
+let currentChatType = localStorage.getItem("telegrom_chat_type") || "private";
+let currentGroupId = localStorage.getItem("telegrom_group_id") || null;
+let currentGroupName = localStorage.getItem("telegrom_group_name") || "";
 
 let usersTimer = null;
 let messagesTimer = null;
@@ -349,6 +393,7 @@ let isRecordingVoice = false;
 let usersCache = [];
 let unreadCache = {};
 let lastMessagesCache = {};
+let groupsCache = [];
 let knownMessageIds = new Set();
 let notificationsEnabled = false;
 let currentTheme = "dark";
@@ -626,14 +671,19 @@ async function startApp(){
   setInterval(checkNewIncomingMessages, 3000);
 
   if(!usersTimer){
-    usersTimer = setInterval(loadUsers, 4000);
+    usersTimer = setInterval(async () => {
+      await loadUsers();
+      await loadGroups();
+    }, 4000);
   }
 
   if(!onlineTimer){
     onlineTimer = setInterval(saveOrUpdateUser, 10000);
   }
 
-  if(friend){
+  if(currentChatType === "group" && currentGroupId){
+    openGroupChat(currentGroupId, currentGroupName);
+  }else if(friend){
     openChat(friend);
   }
 }
@@ -829,6 +879,13 @@ function isOnline(lastSeen){
 }
 
 async function openChat(selectedUser){
+  currentChatType = "private";
+  currentGroupId = null;
+  currentGroupName = "";
+  localStorage.setItem("telegrom_chat_type", "private");
+  localStorage.removeItem("telegrom_group_id");
+  localStorage.removeItem("telegrom_group_name");
+
   friend = selectedUser;
   localStorage.setItem("telegrom_friend", friend);
 
@@ -1187,6 +1244,11 @@ async function uploadVoiceMessage(blob){
 
 
 async function sendPrivateMessage(){
+  if(currentChatType === "group"){
+    await sendGroupMessage();
+    return;
+  }
+
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
 
@@ -1691,6 +1753,237 @@ async function primeKnownMessages(){
   (data || []).forEach(msg => knownMessageIds.add(msg.id));
 }
 
+
+
+async function createGroup(){
+  const name = prompt("Название группы:");
+  if(!name || !name.trim()) return;
+
+  const membersRaw = prompt("Участники через запятую, например: vasya, nikon");
+  const members = (membersRaw || "")
+    .split(",")
+    .map(x => x.trim())
+    .filter(Boolean);
+
+  if(!members.includes(username)){
+    members.push(username);
+  }
+
+  const { data, error } = await db
+    .from("telegram_groups")
+    .insert([{ name: name.trim() }])
+    .select();
+
+  if(error){
+    alert("Ошибка создания группы: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  const group = data[0];
+
+  const rows = members.map(member => ({
+    group_id: group.id,
+    username: member
+  }));
+
+  const { error: membersError } = await db
+    .from("telegram_group_members")
+    .insert(rows);
+
+  if(membersError){
+    alert("Группа создана, но участники не добавились: " + membersError.message);
+    console.error(membersError);
+  }
+
+  await loadGroups();
+  openGroupChat(group.id, group.name);
+}
+
+async function loadGroups(){
+  if(!username) return;
+
+  const { data: memberships, error } = await db
+    .from("telegram_group_members")
+    .select("*")
+    .eq("username", username);
+
+  if(error){
+    console.error("Ошибка загрузки групп:", error);
+    return;
+  }
+
+  const ids = (memberships || []).map(x => x.group_id);
+
+  if(ids.length === 0){
+    groupsCache = [];
+    renderGroups();
+    return;
+  }
+
+  const { data: groups, error: groupsError } = await db
+    .from("telegram_groups")
+    .select("*")
+    .in("id", ids)
+    .order("created_at", { ascending:false });
+
+  if(groupsError){
+    console.error("Ошибка загрузки названий групп:", groupsError);
+    return;
+  }
+
+  groupsCache = groups || [];
+  renderGroups();
+}
+
+function renderGroups(){
+  const list = document.getElementById("groupsList");
+  if(!list) return;
+
+  list.innerHTML = "";
+
+  if(groupsCache.length === 0){
+    list.innerHTML = '<div class="small">Групп пока нет.</div>';
+    return;
+  }
+
+  groupsCache.forEach(group => {
+    const div = document.createElement("div");
+    div.className = "group-item";
+    if(currentChatType === "group" && String(currentGroupId) === String(group.id)){
+      div.classList.add("active");
+    }
+
+    const badge = document.createElement("div");
+    badge.className = "group-badge";
+    badge.textContent = "👥";
+
+    const main = document.createElement("div");
+    main.className = "user-main";
+
+    const name = document.createElement("div");
+    name.className = "user-name";
+    name.textContent = group.name;
+
+    const preview = document.createElement("div");
+    preview.className = "user-preview";
+    preview.textContent = "Групповой чат";
+
+    main.appendChild(name);
+    main.appendChild(preview);
+
+    div.appendChild(badge);
+    div.appendChild(main);
+
+    div.onclick = () => openGroupChat(group.id, group.name);
+    list.appendChild(div);
+  });
+}
+
+async function openGroupChat(groupId, groupName){
+  currentChatType = "group";
+  currentGroupId = groupId;
+  currentGroupName = groupName;
+
+  localStorage.setItem("telegrom_chat_type", "group");
+  localStorage.setItem("telegrom_group_id", groupId);
+  localStorage.setItem("telegrom_group_name", groupName);
+
+  friend = null;
+  localStorage.removeItem("telegrom_friend");
+
+  document.getElementById("chatTitle").textContent = "👥 Группа: " + groupName;
+  document.getElementById("typingStatus").textContent = "";
+  document.getElementById("sendBox").style.display = "flex";
+
+  await loadGroups();
+  await loadGroupMessages();
+
+  if(messagesTimer){
+    clearInterval(messagesTimer);
+  }
+
+  messagesTimer = setInterval(async () => {
+    await loadGroupMessages();
+  }, 2500);
+}
+
+async function sendGroupMessage(){
+  const input = document.getElementById("messageInput");
+  const text = input.value.trim();
+
+  if(!currentGroupId){
+    alert("Сначала выбери группу");
+    return;
+  }
+
+  if(!text) return;
+
+  const { error } = await db
+    .from("telegram_group_messages")
+    .insert([{
+      group_id: Number(currentGroupId),
+      username: username,
+      message: text
+    }]);
+
+  if(error){
+    alert("Ошибка отправки в группу: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  input.value = "";
+  await loadGroupMessages();
+}
+
+async function loadGroupMessages(){
+  if(!currentGroupId) return;
+
+  const { data, error } = await db
+    .from("telegram_group_messages")
+    .select("*")
+    .eq("group_id", Number(currentGroupId))
+    .order("created_at", { ascending:true });
+
+  if(error){
+    console.error("Ошибка загрузки групповых сообщений:", error);
+    return;
+  }
+
+  renderGroupMessages(data || []);
+}
+
+function renderGroupMessages(messages){
+  const chat = document.getElementById("chat");
+  chat.innerHTML = "";
+
+  if(!messages || messages.length === 0){
+    chat.innerHTML = '<div class="empty">Пока сообщений нет. Напиши первым.</div>';
+    return;
+  }
+
+  messages.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "msg";
+
+    if(item.username === username){
+      div.classList.add("me");
+    }
+
+    div.innerHTML = `
+      <div class="name">${escapeHtml(item.username)}</div>
+      <div class="text">${escapeHtml(item.message)}</div>
+      <div class="time">
+        <span>${new Date(item.created_at).toLocaleString()}</span>
+      </div>
+    `;
+
+    chat.appendChild(div);
+  });
+
+  chat.scrollTop = chat.scrollHeight;
+}
 
 function handleEnter(event){
   if(event.key === "Enter") sendPrivateMessage();
