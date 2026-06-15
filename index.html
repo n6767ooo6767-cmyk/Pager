@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0b1020">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Pager">
-<title>Pager X V9.3 TURN ICE Fix</title>
+<title>Pager X V9.4 Init Fix</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -868,7 +869,7 @@ button.locked-chat{
 
 <div class="app">
   <div class="header">
-    <div>📟 Pager <span class="small" id="buildLabel">X V9.3 TURN</span></div>
+    <div>📟 Pager <span class="small" id="buildLabel">X V9.4 INIT FIX</span></div>
     <div>
       <span class="small" id="currentUserText"></span>
       <button class="secondary" id="notifyBtn" style="display:none" onclick="enableNotifications()">🔔</button>
@@ -1032,6 +1033,16 @@ const db = window.supabase.createClient(
   "sb_publishable_AAUgqla1G4Xi4N0vk2B9jw_Eg-yj1Jm"
 );
 
+var currentLanguage = localStorage.getItem("pager_language") || null;
+var pendingLocalIceCandidates = [];
+
+window.setLanguage = window.setLanguage || function(lang){
+  currentLanguage = lang;
+  localStorage.setItem("pager_language", lang);
+  var ls = document.getElementById("languageScreen");
+  if(ls) ls.style.display = "none";
+};
+
 let currentUser = null;
 let username = null;
 let friend = localStorage.getItem("telegrom_friend");
@@ -1051,7 +1062,7 @@ let callPollTimer = null;
 let incomingPollTimer = null;
 let knownIce = new Set();
     pendingLocalIceCandidates = [];
-let pendingLocalIceCandidates = [];
+
 let isVideoCall = false;
 let cameraEnabled = true;
 let micEnabled = true;
@@ -1079,10 +1090,10 @@ let channelsCache = [];
 let knownMessageIds = new Set();
 let notificationsEnabled = false;
 let currentTheme = "dark";
-let currentLanguage = localStorage.getItem("pager_language") || null;
+
 let callStartedAt = null;
 let callTimerInterval = null;
-let pagerBuildName = "Pager X V9.3 TURN ICE Fix";
+let pagerBuildName = "Pager X V9.4 Init Fix";
 
 const THEME_VALUES = {
   dark: {
