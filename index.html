@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pager X V6 Friends</title>
+<title>Pager X V6.1 Full Language</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -724,7 +724,7 @@ button:active{
 
 <div class="app">
   <div class="header">
-    <div>📟 Pager <span class="small">X V6 FRIENDS</span></div>
+    <div>📟 Pager <span class="small" id="buildLabel">X V6.1 LANGUAGE</span></div>
     <div>
       <span class="small" id="currentUserText"></span>
       <button class="secondary" id="notifyBtn" style="display:none" onclick="enableNotifications()">🔔</button>
@@ -745,28 +745,28 @@ button:active{
 
   <div class="main" id="mainBox">
     <div class="sidebar">
-      <h3>Диалоги</h3>
-      <button class="secondary group-create" onclick="createGroup()">👥 Создать группу</button>
-      <button class="secondary channel-create" onclick="createChannel()">📢 Создать канал</button>
+      <h3 id="dialogsTitle">Диалоги</h3>
+      <button class="secondary group-create" id="createGroupBtn" onclick="createGroup()">👥 Создать группу</button>
+      <button class="secondary channel-create" id="createChannelBtn" onclick="createChannel()">📢 Создать канал</button>
       <input class="search" id="searchInput" placeholder="Поиск..." oninput="renderUsersFromCache()">
 
       <div class="pager-tools">
-        <button class="secondary" onclick="showSavedMessages()">⭐ Saved</button>
-        <button class="secondary" onclick="showCallHistory()">📞 Calls</button>
-        <button class="secondary" onclick="quickStatus()">✏️ Status</button>
+        <button class="secondary" id="savedBtn" onclick="showSavedMessages()">⭐ Saved</button>
+        <button class="secondary" id="callsBtn" onclick="showCallHistory()">📞 Calls</button>
+        <button class="secondary" id="statusBtn" onclick="quickStatus()">✏️ Status</button>
       </div>
       <div class="friend-tabs">
-        <button class="secondary" onclick="showAllUsersMode()">🌍 All</button>
-        <button class="secondary" onclick="showFriendsMode()">👥 Friends</button>
-        <button class="secondary" onclick="showRequestsMode()">📩 Requests</button>
+        <button class="secondary" id="allBtn" onclick="showAllUsersMode()">🌍 All</button>
+        <button class="secondary" id="friendsBtn" onclick="showFriendsMode()">👥 Friends</button>
+        <button class="secondary" id="requestsBtn" onclick="showRequestsMode()">📩 Requests</button>
       </div>
       <div class="pinned-note" id="pinnedNote"></div>
 
-      <div class="section-title">Личные</div>
+      <div class="section-title" id="privateSectionTitle">Личные</div>
       <div id="usersList"></div>
-      <div class="section-title">Группы</div>
+      <div class="section-title" id="groupsSectionTitle">Группы</div>
       <div id="groupsList"></div>
-      <div class="section-title">Каналы</div>
+      <div class="section-title" id="channelsSectionTitle">Каналы</div>
       <div id="channelsList"></div>
     </div>
 
@@ -791,7 +791,7 @@ button:active{
         <button class="photo-btn" onclick="document.getElementById('photoInput').click()">📷</button>
         <button class="voice-btn" id="voiceBtn" onclick="toggleVoiceRecording()">🎤</button><button class="emoji-btn" onclick="toggleEmojiPanel()">😊</button>
         <input id="messageInput" placeholder="Сообщение..." onkeydown="handleEnter(event)">
-        <button onclick="sendPrivateMessage()">Send</button>
+        <button id="sendBtn" onclick="sendPrivateMessage()">Send</button>
       </div>
     </div>
   </div>
@@ -800,25 +800,35 @@ button:active{
 
 <div class="profile-backdrop" id="profileBackdrop">
   <div class="profile-modal">
-    <h2>Мой профиль</h2>
+    <h2 id="profileTitle">Мой профиль</h2>
 
     <div class="profile-row">
-      <label>Ник</label>
+      <label id="profileNickLabel">Ник</label>
       <input id="profileUsername" placeholder="Например: Nikon">
     </div>
 
     <div class="profile-row">
-      <label>Статус / bio</label>
+      <label id="profileBioLabel">Статус / bio</label>
       <input id="profileBio" placeholder="Например: строю Pager">
     </div>
 
     <div class="profile-row">
-      <label>Ссылка на аватарку</label>
+      <label id="profileAvatarLabel">Ссылка на аватарку</label>
       <input id="profileAvatar" placeholder="https://.../avatar.png" oninput="updateProfilePreview()">
     </div>
 
+
     <div class="profile-row">
-      <label>Тема</label>
+      <label id="profileLanguageLabel">Язык</label>
+      <select id="profileLanguage" onchange="setLanguage(this.value)">
+        <option value="en">🇬🇧 English</option>
+        <option value="ru">🇷🇺 Русский</option>
+        <option value="pl">🇵🇱 Polski</option>
+      </select>
+    </div>
+
+    <div class="profile-row">
+      <label id="profileThemeLabel">Тема</label>
       <select id="profileTheme" onchange="applyTheme(this.value)">
         <option value="dark">🌙 Dark</option>
         <option value="light">☀️ Light</option>
@@ -834,8 +844,8 @@ button:active{
       </div>
     </div>
 
-    <button onclick="saveProfile()">Сохранить</button>
-    <button class="secondary" onclick="closeProfile()">Закрыть</button>
+    <button id="saveProfileBtn" onclick="saveProfile()">Сохранить</button>
+    <button class="secondary" id="closeProfileBtn" onclick="closeProfile()">Закрыть</button>
   </div>
 </div>
 
@@ -852,7 +862,7 @@ button:active{
 
     <div class="call-actions">
       <button class="call-accept" id="acceptCallBtn" style="display:none" onclick="acceptIncomingCall()">Ответить</button>
-      <button class="call-end" onclick="endVoiceCall()">Завершить</button>
+      <button class="call-end" id="endCallBtn" onclick="endVoiceCall()">Завершить</button>
     </div>
   </div>
 </div>
@@ -906,7 +916,7 @@ let currentTheme = "dark";
 let currentLanguage = localStorage.getItem("pager_language") || null;
 let callStartedAt = null;
 let callTimerInterval = null;
-let pagerBuildName = "Pager X V6 Friends";
+let pagerBuildName = "Pager X V6.1 Full Language";
 
 const THEME_VALUES = {
   dark: {
@@ -947,7 +957,7 @@ window.setLanguage = setLanguage;
 function applyLanguage(){
   const dict = {
     en:{
-      title:"Login to Pager",
+      authTitle:"Login to Pager",
       password:"Password",
       nick:"Nickname for registration, for example Nikon",
       login:"Login",
@@ -956,10 +966,37 @@ function applyLanguage(){
       search:"Search...",
       choose:"Choose a user on the left",
       privateEmpty:"Private messages will appear here.",
-      message:"Message..."
+      message:"Message...",
+      profile:"Profile",
+      logout:"Logout",
+      dialogs:"Dialogs",
+      createGroup:"👥 Create group",
+      createChannel:"📢 Create channel",
+      saved:"⭐ Saved",
+      calls:"📞 Calls",
+      status:"✏️ Status",
+      all:"🌍 All",
+      friends:"👥 Friends",
+      requests:"📩 Requests",
+      private:"Private",
+      groups:"Groups",
+      channels:"Channels",
+      send:"Send",
+      profileTitle:"My profile",
+      profileNick:"Nickname",
+      profileBio:"Status / bio",
+      profileAvatar:"Avatar link",
+      profileTheme:"Theme",
+      profileLanguage:"Language",
+      save:"Save",
+      close:"Close",
+      answer:"Answer",
+      end:"End",
+      callTitle:"Call",
+      connecting:"Connecting..."
     },
     ru:{
-      title:"Вход в Pager",
+      authTitle:"Вход в Pager",
       password:"Пароль",
       nick:"Ник для регистрации, например Nikon",
       login:"Войти",
@@ -968,10 +1005,37 @@ function applyLanguage(){
       search:"Поиск...",
       choose:"Выбери пользователя слева",
       privateEmpty:"Личная переписка появится здесь.",
-      message:"Сообщение..."
+      message:"Сообщение...",
+      profile:"Профиль",
+      logout:"Выйти",
+      dialogs:"Диалоги",
+      createGroup:"👥 Создать группу",
+      createChannel:"📢 Создать канал",
+      saved:"⭐ Сохранённое",
+      calls:"📞 Звонки",
+      status:"✏️ Статус",
+      all:"🌍 Все",
+      friends:"👥 Друзья",
+      requests:"📩 Заявки",
+      private:"Личные",
+      groups:"Группы",
+      channels:"Каналы",
+      send:"Отправить",
+      profileTitle:"Мой профиль",
+      profileNick:"Ник",
+      profileBio:"Статус / bio",
+      profileAvatar:"Ссылка на аватарку",
+      profileTheme:"Тема",
+      profileLanguage:"Язык",
+      save:"Сохранить",
+      close:"Закрыть",
+      answer:"Ответить",
+      end:"Завершить",
+      callTitle:"Звонок",
+      connecting:"Подключение..."
     },
     pl:{
-      title:"Logowanie do Pager",
+      authTitle:"Logowanie do Pager",
       password:"Hasło",
       nick:"Nick do rejestracji, np. Nikon",
       login:"Zaloguj",
@@ -980,20 +1044,56 @@ function applyLanguage(){
       search:"Szukaj...",
       choose:"Wybierz użytkownika po lewej",
       privateEmpty:"Prywatne wiadomości pojawią się tutaj.",
-      message:"Wiadomość..."
+      message:"Wiadomość...",
+      profile:"Profil",
+      logout:"Wyloguj",
+      dialogs:"Czaty",
+      createGroup:"👥 Utwórz grupę",
+      createChannel:"📢 Utwórz kanał",
+      saved:"⭐ Zapisane",
+      calls:"📞 Połączenia",
+      status:"✏️ Status",
+      all:"🌍 Wszyscy",
+      friends:"👥 Znajomi",
+      requests:"📩 Zaproszenia",
+      private:"Prywatne",
+      groups:"Grupy",
+      channels:"Kanały",
+      send:"Wyślij",
+      profileTitle:"Mój profil",
+      profileNick:"Nick",
+      profileBio:"Status / bio",
+      profileAvatar:"Link do avatara",
+      profileTheme:"Motyw",
+      profileLanguage:"Język",
+      save:"Zapisz",
+      close:"Zamknij",
+      answer:"Odbierz",
+      end:"Zakończ",
+      callTitle:"Połączenie",
+      connecting:"Łączenie..."
     }
   };
 
   const lang = dict[currentLanguage || "en"] || dict.en;
 
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = value;
+  };
+
+  const setPlaceholder = (id, value) => {
+    const el = document.getElementById(id);
+    if(el) el.placeholder = value;
+  };
+
   const title = document.querySelector("#authBox h2");
-  if(title) title.textContent = lang.title;
+  if(title) title.textContent = lang.authTitle;
 
-  const password = document.getElementById("passwordInput");
-  if(password) password.placeholder = lang.password;
-
-  const nick = document.getElementById("nicknameInput");
-  if(nick) nick.placeholder = lang.nick;
+  setPlaceholder("passwordInput", lang.password);
+  setPlaceholder("nicknameInput", lang.nick);
+  setPlaceholder("searchInput", lang.search);
+  setPlaceholder("messageInput", lang.message);
 
   const authButtons = document.querySelectorAll("#authBox button");
   if(authButtons[0]) authButtons[0].textContent = lang.login;
@@ -1002,21 +1102,64 @@ function applyLanguage(){
   const hint = document.querySelector("#authBox .small");
   if(hint) hint.textContent = lang.hint;
 
-  const search = document.getElementById("searchInput");
-  if(search) search.placeholder = lang.search;
+  setText("profileBtn", lang.profile);
+  setText("logoutBtn", lang.logout);
+  setText("dialogsTitle", lang.dialogs);
+  setText("createGroupBtn", lang.createGroup);
+  setText("createChannelBtn", lang.createChannel);
+  setText("savedBtn", lang.saved);
+  setText("callsBtn", lang.calls);
+  setText("statusBtn", lang.status);
+  setText("allBtn", lang.all);
+  setText("friendsBtn", lang.friends);
+  setText("requestsBtn", lang.requests);
+  setText("privateSectionTitle", lang.private);
+  setText("groupsSectionTitle", lang.groups);
+  setText("channelsSectionTitle", lang.channels);
+  setText("sendBtn", lang.send);
+
+  setText("profileTitle", lang.profileTitle);
+  setText("profileNickLabel", lang.profileNick);
+  setText("profileBioLabel", lang.profileBio);
+  setText("profileAvatarLabel", lang.profileAvatar);
+  setText("profileThemeLabel", lang.profileTheme);
+  setText("profileLanguageLabel", lang.profileLanguage);
+  setText("saveProfileBtn", lang.save);
+  setText("closeProfileBtn", lang.close);
+
+  setText("acceptCallBtn", lang.answer);
+  setText("endCallBtn", lang.end);
+
+  const callTitle = document.getElementById("callTitle");
+  if(callTitle && ["Звонок","Call","Połączenie"].includes(callTitle.textContent.trim())){
+    callTitle.textContent = lang.callTitle;
+  }
+
+  const callStatus = document.getElementById("callStatus");
+  if(callStatus && ["Подключение...","Connecting...","Łączenie..."].includes(callStatus.textContent.trim())){
+    callStatus.textContent = lang.connecting;
+  }
 
   const chatTitle = document.getElementById("chatTitle");
-  if(chatTitle && (chatTitle.textContent.includes("Выбери") || chatTitle.textContent.includes("Choose") || chatTitle.textContent.includes("Wybierz"))){
+  if(chatTitle && (
+    chatTitle.textContent.includes("Выбери") ||
+    chatTitle.textContent.includes("Choose") ||
+    chatTitle.textContent.includes("Wybierz")
+  )){
     chatTitle.textContent = lang.choose;
   }
 
   const empty = document.querySelector("#chat .empty");
-  if(empty && (empty.textContent.includes("Личная") || empty.textContent.includes("Private") || empty.textContent.includes("Prywatne"))){
+  if(empty && (
+    empty.textContent.includes("Личная") ||
+    empty.textContent.includes("Private") ||
+    empty.textContent.includes("Prywatne")
+  )){
     empty.textContent = lang.privateEmpty;
   }
 
-  const msg = document.getElementById("messageInput");
-  if(msg) msg.placeholder = lang.message;
+  const profileLanguage = document.getElementById("profileLanguage");
+  if(profileLanguage) profileLanguage.value = currentLanguage || "en";
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -1272,6 +1415,7 @@ async function startApp(){
   document.getElementById("notifyBtn").style.display = "inline-block";
   document.getElementById("profileBtn").style.display = "inline-block";
   document.getElementById("currentUserText").textContent = "Ты: " + username + " ";
+  applyLanguage();
 
   await saveOrUpdateUser();
   await loadThemeFromSettings();
@@ -1383,21 +1527,21 @@ function showAllUsersMode(){
   peopleMode = "all";
   localStorage.setItem("pager_people_mode", peopleMode);
   renderUsersFromCache();
-  toast("Showing all users");
+  toast(getUiLang().showingAll);
 }
 
 function showFriendsMode(){
   peopleMode = "friends";
   localStorage.setItem("pager_people_mode", peopleMode);
   renderUsersFromCache();
-  toast("Showing friends");
+  toast(getUiLang().showingFriends);
 }
 
 function showRequestsMode(){
   peopleMode = "requests";
   localStorage.setItem("pager_people_mode", peopleMode);
   renderFriendRequests();
-  toast("Friend requests");
+  toast(getUiLang().friendRequests);
 }
 
 function isFriendUsername(name){
@@ -1461,7 +1605,7 @@ async function sendFriendRequest(targetUsername){
     return;
   }
 
-  toast("Friend request sent to " + targetUsername);
+  toast(getUiLang().friendSent + targetUsername);
 }
 
 async function acceptFriendRequest(requestId, fromUserId){
@@ -1528,7 +1672,7 @@ async function renderFriendRequests(){
   list.innerHTML = "";
 
   if(!friendRequestRowsCache.length){
-    list.innerHTML = '<div class="small">No friend requests.</div>';
+    list.innerHTML = `<div class="small">${getUiLang().noRequests}</div>`;
     return;
   }
 
@@ -1632,6 +1776,73 @@ async function loadUsers(){
   renderUsersFromCache();
 }
 
+
+function getUiLang(){
+  const all = {
+    en:{
+      noUsers:"No users.",
+      noGroups:"No groups yet.",
+      noChannels:"No channels yet.",
+      noRequests:"${getUiLang().noRequests}",
+      addFriend:"➕ Add friend",
+      friend:"👥 Friend",
+      friendSent:"Friend request sent to ",
+      showingAll:"Showing all users",
+      showingFriends:"Showing friends",
+      friendRequests:"Friend requests",
+      privateChat:"Private chat: ",
+      group:"👥 Group: ",
+      channel:"📢 Channel: ",
+      owner:"Owner: ",
+      groupChat:"Group chat",
+      noMessages:"No messages yet. Write first.",
+      onlyOwner:"Only owner can publish",
+      youOwner:"You own this channel"
+    },
+    ru:{
+      noUsers:"${getUiLang().noUsers}",
+      noGroups:"Групп пока нет.",
+      noChannels:"Каналов пока нет.",
+      noRequests:"Заявок в друзья нет.",
+      addFriend:"➕ Добавить",
+      friend:"👥 Друг",
+      friendSent:"Заявка отправлена: ",
+      showingAll:"Показаны все пользователи",
+      showingFriends:"Показаны друзья",
+      friendRequests:"Заявки в друзья",
+      privateChat:"Личный чат: ",
+      group:"👥 Группа: ",
+      channel:"📢 Канал: ",
+      owner:"Автор: ",
+      groupChat:getUiLang().groupChat,
+      noMessages:"${getUiLang().noMessages}",
+      onlyOwner:"Только владелец может публиковать",
+      youOwner:"Вы владелец канала"
+    },
+    pl:{
+      noUsers:"Brak użytkowników.",
+      noGroups:"Nie ma jeszcze grup.",
+      noChannels:"Nie ma jeszcze kanałów.",
+      noRequests:"Brak zaproszeń.",
+      addFriend:"➕ Dodaj",
+      friend:"👥 Znajomy",
+      friendSent:"Zaproszenie wysłane do ",
+      showingAll:"Pokazano wszystkich użytkowników",
+      showingFriends:"Pokazano znajomych",
+      friendRequests:"Zaproszenia",
+      privateChat:"Czat prywatny: ",
+      group:"👥 Grupa: ",
+      channel:"📢 Kanał: ",
+      owner:"Autor: ",
+      groupChat:"Czat grupowy",
+      noMessages:"Brak wiadomości. Napisz jako pierwszy.",
+      onlyOwner:"Tylko właściciel może publikować",
+      youOwner:"Jesteś właścicielem kanału"
+    }
+  };
+  return all[currentLanguage || "en"] || all.en;
+}
+
 function renderUsersFromCache(){
   const list = document.getElementById("usersList");
   const search = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
@@ -1664,7 +1875,7 @@ function renderUsersFromCache(){
   });
 
   if(filtered.length === 0){
-    list.innerHTML = '<div class="small">Пользователей нет.</div>';
+    list.innerHTML = `<div class="small">${getUiLang().noUsers}</div>`;
     return;
   }
 
@@ -1705,14 +1916,14 @@ function renderUsersFromCache(){
     if(isFriendUsername(user.username)){
       const pill = document.createElement("div");
       pill.className = "friend-pill";
-      pill.textContent = "👥 Friend";
+      pill.textContent = getUiLang().friend;
       main.appendChild(pill);
     }else if(peopleMode === "all"){
       const actionRow = document.createElement("div");
       actionRow.className = "friend-action-row";
       const addBtn = document.createElement("button");
       addBtn.className = "mini";
-      addBtn.textContent = "➕ Add friend";
+      addBtn.textContent = getUiLang().addFriend;
       addBtn.onclick = (event) => {
         event.stopPropagation();
         sendFriendRequest(user.username);
@@ -1801,7 +2012,7 @@ async function openChat(selectedUser){
   friend = selectedUser;
   localStorage.setItem("telegrom_friend", friend);
 
-  document.getElementById("chatTitle").textContent = "Личный чат: " + username + " ↔ " + friend;
+  document.getElementById("chatTitle").textContent = getUiLang().privateChat + username + " ↔ " + friend;
   document.getElementById("typingStatus").textContent = "";
   document.getElementById("sendBox").style.display = "flex";
   document.getElementById("callBtn").style.display = "inline-block";
@@ -2215,7 +2426,7 @@ function renderMessages(messages){
   chat.innerHTML = "";
 
   if(!messages || messages.length === 0){
-    chat.innerHTML = '<div class="empty">Пока сообщений нет. Напиши первым.</div>';
+    chat.innerHTML = `<div class="empty">${getUiLang().noMessages}</div>`;
     return;
   }
 
@@ -2363,6 +2574,8 @@ async function openProfile(){
   document.getElementById("profileBio").value = profile.bio || "";
   document.getElementById("profileAvatar").value = profile.avatar || "";
   document.getElementById("profileTheme").value = currentTheme || "dark";
+  const langSelect = document.getElementById("profileLanguage");
+  if(langSelect) langSelect.value = currentLanguage || "en";
 
   updateProfilePreview();
   document.getElementById("profileBackdrop").style.display = "flex";
@@ -2787,7 +3000,7 @@ function renderGroups(){
 
     const preview = document.createElement("div");
     preview.className = "user-preview";
-    preview.textContent = "Групповой чат";
+    preview.textContent = getUiLang().groupChat;
 
     main.appendChild(name);
     main.appendChild(preview);
@@ -2818,7 +3031,7 @@ async function openGroupChat(groupId, groupName){
   friend = null;
   localStorage.removeItem("telegrom_friend");
 
-  document.getElementById("chatTitle").textContent = "👥 Группа: " + groupName;
+  document.getElementById("chatTitle").textContent = getUiLang().group + groupName;
   document.getElementById("typingStatus").textContent = "";
   document.getElementById("sendBox").style.display = "flex";
   document.getElementById("callBtn").style.display = "none";
@@ -2887,7 +3100,7 @@ function renderGroupMessages(messages){
   chat.innerHTML = "";
 
   if(!messages || messages.length === 0){
-    chat.innerHTML = '<div class="empty">Пока сообщений нет. Напиши первым.</div>';
+    chat.innerHTML = `<div class="empty">${getUiLang().noMessages}</div>`;
     return;
   }
 
@@ -2989,7 +3202,7 @@ function renderChannels(){
 
     const owner = document.createElement("div");
     owner.className = "channel-owner";
-    owner.textContent = "Автор: " + (channel.owner || "unknown");
+    owner.textContent = getUiLang().owner + (channel.owner || "unknown");
 
     main.appendChild(name);
     main.appendChild(owner);
@@ -3020,9 +3233,9 @@ async function openChannel(channelId, channelName, channelOwner){
   localStorage.removeItem("telegrom_group_name");
   localStorage.removeItem("telegrom_friend");
 
-  document.getElementById("chatTitle").textContent = "📢 Канал: " + channelName;
+  document.getElementById("chatTitle").textContent = getUiLang().channel + channelName;
   document.getElementById("typingStatus").textContent =
-    currentChannelOwner === username ? "Вы владелец канала" : "Только владелец может публиковать";
+    currentChannelOwner === username ? getUiLang().youOwner : getUiLang().onlyOwner;
 
   document.getElementById("sendBox").style.display = currentChannelOwner === username ? "flex" : "none";
   document.getElementById("callBtn").style.display = "none";
