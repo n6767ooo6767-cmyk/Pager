@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0b1020">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Pager">
-<title>Pager X V9 Video Calls</title>
+<title>Pager X V9.3 TURN ICE Fix</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -868,7 +868,7 @@ button.locked-chat{
 
 <div class="app">
   <div class="header">
-    <div>📟 Pager <span class="small" id="buildLabel">X V9 VIDEO</span></div>
+    <div>📟 Pager <span class="small" id="buildLabel">X V9.3 TURN</span></div>
     <div>
       <span class="small" id="currentUserText"></span>
       <button class="secondary" id="notifyBtn" style="display:none" onclick="enableNotifications()">🔔</button>
@@ -1050,6 +1050,8 @@ let callRole = null;
 let callPollTimer = null;
 let incomingPollTimer = null;
 let knownIce = new Set();
+    pendingLocalIceCandidates = [];
+let pendingLocalIceCandidates = [];
 let isVideoCall = false;
 let cameraEnabled = true;
 let micEnabled = true;
@@ -1080,7 +1082,7 @@ let currentTheme = "dark";
 let currentLanguage = localStorage.getItem("pager_language") || null;
 let callStartedAt = null;
 let callTimerInterval = null;
-let pagerBuildName = "Pager X V9 Video Calls";
+let pagerBuildName = "Pager X V9.3 TURN ICE Fix";
 
 const THEME_VALUES = {
   dark: {
@@ -3751,7 +3753,28 @@ function createPeerConnection(){
   const pc = new RTCPeerConnection({
     iceServers:[
       { urls:"stun:stun.l.google.com:19302" },
-      { urls:"stun:stun1.l.google.com:19302" }
+      { urls:"stun:stun1.l.google.com:19302" },
+      { urls:"stun:stun.relay.metered.ca:80" },
+      {
+        urls:"turn:global.relay.metered.ca:80",
+        username:"07808db0a2e6f316cfa27885",
+        credential:"IAAlv8XzF+FKYz98"
+      },
+      {
+        urls:"turn:global.relay.metered.ca:80?transport=tcp",
+        username:"07808db0a2e6f316cfa27885",
+        credential:"IAAlv8XzF+FKYz98"
+      },
+      {
+        urls:"turn:global.relay.metered.ca:443",
+        username:"07808db0a2e6f316cfa27885",
+        credential:"IAAlv8XzF+FKYz98"
+      },
+      {
+        urls:"turns:global.relay.metered.ca:443?transport=tcp",
+        username:"07808db0a2e6f316cfa27885",
+        credential:"IAAlv8XzF+FKYz98"
+      }
     ]
   });
 
@@ -3770,6 +3793,14 @@ function createPeerConnection(){
     }
   };
 
+  pc.oniceconnectionstatechange = () => {
+    const status = document.getElementById("callStatus");
+    if(status){
+      status.textContent = "ICE: " + pc.iceConnectionState;
+    }
+    console.log("ICE state:", pc.iceConnectionState);
+  };
+
   pc.onconnectionstatechange = () => {
     if(pc.connectionState === "connected"){
       document.getElementById("callStatus").textContent = "Call connected";
@@ -3783,27 +3814,65 @@ function createPeerConnection(){
   };
 
   pc.onicecandidate = async event => {
-    if(!event.candidate || !activeCallId) return;
+    if(!event.candidate) return;
 
-    const column = callRole === "caller" ? "caller_ice" : "callee_ice";
+    const candidateJson = event.candidate.toJSON();
 
-    const { data } = await db
-      .from("telegram_calls")
-      .select(column)
-      .eq("id", activeCallId)
-      .limit(1);
+    if(!activeCallId){
+      pendingLocalIceCandidates.push(candidateJson);
+      return;
+    }
 
-    const oldList = data && data[0] && data[0][column] ? data[0][column] : [];
-    oldList.push(event.candidate.toJSON());
-
-    await db
-      .from("telegram_calls")
-      .update({ [column]: oldList })
-      .eq("id", activeCallId);
+    await saveLocalIceCandidate(candidateJson);
   };
 
   return pc;
 }
+
+
+async function saveLocalIceCandidate(candidateJson){
+  if(!activeCallId || !callRole || !candidateJson) return;
+
+  const column = callRole === "caller" ? "caller_ice" : "callee_ice";
+
+  const { data, error } = await db
+    .from("telegram_calls")
+    .select(column)
+    .eq("id", activeCallId)
+    .limit(1);
+
+  if(error){
+    console.error("ICE read error:", error);
+    return;
+  }
+
+  const oldList = data && data[0] && data[0][column] ? data[0][column] : [];
+
+  const key = JSON.stringify(candidateJson);
+  const exists = oldList.some(item => JSON.stringify(item) === key);
+  if(!exists){
+    oldList.push(candidateJson);
+  }
+
+  const { error: updateError } = await db
+    .from("telegram_calls")
+    .update({ [column]: oldList })
+    .eq("id", activeCallId);
+
+  if(updateError){
+    console.error("ICE save error:", updateError);
+  }
+}
+
+async function flushPendingLocalIceCandidates(){
+  const queue = [...pendingLocalIceCandidates];
+  pendingLocalIceCandidates = [];
+
+  for(const candidate of queue){
+    await saveLocalIceCandidate(candidate);
+  }
+}
+
 
 async function getMicrophone(){
   return await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
@@ -3874,6 +3943,7 @@ async function startVoiceCall(){
   try{
     callRole = "caller";
     knownIce = new Set();
+    pendingLocalIceCandidates = [];
 
     openCallModal("Звонок: " + friend, "Звоним...", false);
 
@@ -3909,6 +3979,9 @@ async function startVoiceCall(){
     }
 
     activeCallId = data[0].id;
+    await flushPendingLocalIceCandidates();
+
+    await flushPendingLocalIceCandidates();
 
     if(callPollTimer) clearInterval(callPollTimer);
     callPollTimer = setInterval(pollCallerCallState, 1500);
@@ -3967,6 +4040,7 @@ async function startVideoCall(){
     }
 
     activeCallId = data[0].id;
+    await flushPendingLocalIceCandidates();
 
     if(callPollTimer) clearInterval(callPollTimer);
     callPollTimer = setInterval(pollCallerCallState, 1500);
@@ -4155,6 +4229,7 @@ async function endVoiceCall(updateDb = true){
   incomingCallData = null;
   callRole = null;
   knownIce = new Set();
+  pendingLocalIceCandidates = [];
   isVideoCall = false;
   cameraEnabled = true;
   micEnabled = true;
