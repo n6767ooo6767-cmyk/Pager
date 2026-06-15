@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Pager">
-<title>Pager X V9.4 Init Fix</title>
+<title>Pager</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -849,6 +849,150 @@ button.locked-chat{
   }
 }
 
+
+/* ===== Pager X V10 Stories ===== */
+.stories-bar{
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  padding:8px 0 12px;
+  margin-bottom:6px;
+  border-bottom:1px solid var(--border);
+}
+.story-bubble{
+  min-width:66px;
+  max-width:74px;
+  cursor:pointer;
+  text-align:center;
+  color:var(--text);
+}
+.story-ring{
+  width:52px;
+  height:52px;
+  margin:auto;
+  border-radius:50%;
+  padding:3px;
+  background:linear-gradient(135deg,#38bdf8,#a855f7,#f97316);
+}
+.story-avatar{
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  background:var(--card);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  overflow:hidden;
+  border:2px solid var(--sidebar);
+}
+.story-avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.story-name{
+  margin-top:4px;
+  font-size:11px;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.story-add{
+  background:#334155!important;
+  color:white!important;
+  min-width:100%;
+  margin:0 0 10px;
+}
+.story-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.76);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:3600;
+  padding:18px;
+}
+.story-box{
+  width:min(460px, calc(100vw - 24px));
+  min-height:420px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:24px;
+  box-shadow:0 25px 90px rgba(0,0,0,.55);
+  padding:18px;
+  display:flex;
+  flex-direction:column;
+}
+.story-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:14px;
+}
+.story-content{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,.06);
+  border-radius:20px;
+  padding:18px;
+  overflow:hidden;
+}
+.story-content img{
+  max-width:100%;
+  max-height:58vh;
+  border-radius:16px;
+}
+.story-text{
+  font-size:28px;
+  line-height:1.25;
+  text-align:center;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.story-actions{
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+}
+.story-actions button{
+  flex:1;
+}
+.story-create-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.7);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:3650;
+  padding:18px;
+}
+.story-create-box{
+  width:min(460px, calc(100vw - 24px));
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:24px;
+  box-shadow:0 25px 90px rgba(0,0,0,.55);
+  padding:18px;
+}
+.story-create-box textarea{
+  width:100%;
+  min-height:130px;
+  resize:vertical;
+  border:0;
+  border-radius:14px;
+  padding:14px;
+  font-size:16px;
+  margin-top:10px;
+  background:var(--input-bg);
+  color:var(--input-text);
+}
+
 </style>
 </head>
 
@@ -869,7 +1013,7 @@ button.locked-chat{
 
 <div class="app">
   <div class="header">
-    <div>📟 Pager <span class="small" id="buildLabel">X V9.4 INIT FIX</span></div>
+    <div>📟 Pager <span class="small" id="buildLabel">X V10 STORIES</span></div>
     <div>
       <span class="small" id="currentUserText"></span>
       <button class="secondary" id="notifyBtn" style="display:none" onclick="enableNotifications()">🔔</button>
@@ -893,6 +1037,8 @@ button.locked-chat{
       <h3 id="dialogsTitle">Диалоги</h3>
       <button class="secondary group-create" id="createGroupBtn" onclick="createGroup()">👥 Создать группу</button>
       <button class="secondary channel-create" id="createChannelBtn" onclick="createChannel()">📢 Создать канал</button>
+      <button class="secondary story-add" id="addStoryBtn" onclick="openCreateStory()">➕ Story</button>
+      <div class="stories-bar" id="storiesBar"></div>
       <input class="search" id="searchInput" placeholder="Поиск..." oninput="renderUsersFromCache()">
 
       <div class="pager-tools">
@@ -1082,6 +1228,8 @@ let friendRequestRowsCache = [];
 let outgoingFriendRequestsCache = new Set();
 let blockedUsersCache = new Set();
 let selectedUserCard = null;
+let storiesCache = [];
+let currentStoryIndex = 0;
 let peopleMode = localStorage.getItem('pager_people_mode') || 'friends';
 let unreadCache = {};
 let lastMessagesCache = {};
@@ -1093,7 +1241,7 @@ let currentTheme = "dark";
 
 let callStartedAt = null;
 let callTimerInterval = null;
-let pagerBuildName = "Pager X V9.4 Init Fix";
+let pagerBuildName = "Pager X V10 Stories";
 
 const THEME_VALUES = {
   dark: {
@@ -1170,7 +1318,8 @@ function applyLanguage(){
       answer:"Answer",
       end:"End",
       callTitle:"Call",
-      connecting:"Connecting..."
+      connecting:"Connecting...",
+      story:"➕ Story"
     },
     ru:{
       authTitle:"Вход в Pager",
@@ -1209,7 +1358,8 @@ function applyLanguage(){
       answer:"Ответить",
       end:"Завершить",
       callTitle:"Звонок",
-      connecting:"Подключение..."
+      connecting:"Подключение...",
+      story:"➕ История"
     },
     pl:{
       authTitle:"Logowanie do Pager",
@@ -1248,7 +1398,8 @@ function applyLanguage(){
       answer:"Odbierz",
       end:"Zakończ",
       callTitle:"Połączenie",
-      connecting:"Łączenie..."
+      connecting:"Łączenie...",
+      story:"➕ Relacja"
     }
   };
 
@@ -1294,6 +1445,7 @@ function applyLanguage(){
   setText("groupsSectionTitle", lang.groups);
   setText("channelsSectionTitle", lang.channels);
   setText("sendBtn", lang.send);
+  setText("addStoryBtn", lang.story);
 
   setText("profileTitle", lang.profileTitle);
   setText("profileNickLabel", lang.profileNick);
@@ -1599,6 +1751,7 @@ async function startApp(){
   await loadBlockedUsers();
   await loadFriendData();
   await loadUsers();
+  await loadStories();
   await loadFriendRequests();
   await loadOutgoingFriendRequests();
   await primeKnownMessages();
@@ -1610,6 +1763,7 @@ async function startApp(){
       await loadBlockedUsers();
       await loadFriendData();
       await loadUsers();
+      await loadStories();
       await loadFriendRequests();
       await loadOutgoingFriendRequests();
       await loadGroups();
@@ -2072,6 +2226,223 @@ async function renderFriendRequests(){
     `;
     list.appendChild(div);
   });
+}
+
+
+async function loadStories(){
+  if(!username) return;
+
+  const { data, error } = await db
+    .from("pager_stories")
+    .select("*")
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending:false });
+
+  if(error){
+    console.error("Stories load error:", error);
+    return;
+  }
+
+  storiesCache = data || [];
+  renderStoriesBar();
+}
+
+function renderStoriesBar(){
+  const bar = document.getElementById("storiesBar");
+  if(!bar) return;
+
+  bar.innerHTML = "";
+
+  const latestByUser = {};
+
+  storiesCache.forEach(story => {
+    if(!latestByUser[story.username]){
+      latestByUser[story.username] = story;
+    }
+  });
+
+  const list = Object.values(latestByUser);
+
+  if(list.length === 0){
+    bar.innerHTML = '<div class="small">No stories yet.</div>';
+    return;
+  }
+
+  list.forEach(story => {
+    const user = usersCache.find(u => u.username === story.username) || {};
+    const div = document.createElement("div");
+    div.className = "story-bubble";
+
+    const avatarInner = user.avatar && /^https?:\/\//i.test(user.avatar)
+      ? `<img src="${escapeHtml(user.avatar)}" alt="">`
+      : escapeHtml(getInitials(story.username));
+
+    div.innerHTML = `
+      <div class="story-ring">
+        <div class="story-avatar">${avatarInner}</div>
+      </div>
+      <div class="story-name">${escapeHtml(story.username)}</div>
+    `;
+
+    div.onclick = () => openStoryViewer(story.id);
+    bar.appendChild(div);
+  });
+}
+
+function openCreateStory(){
+  document.getElementById("storyCreateModal").style.display = "flex";
+}
+
+function closeCreateStory(){
+  document.getElementById("storyCreateModal").style.display = "none";
+  const input = document.getElementById("storyTextInput");
+  const file = document.getElementById("storyPhotoInput");
+  if(input) input.value = "";
+  if(file) file.value = "";
+}
+
+async function createTextStory(){
+  const input = document.getElementById("storyTextInput");
+  const content = (input?.value || "").trim();
+
+  if(!content){
+    alert("Write something first");
+    return;
+  }
+
+  const { error } = await db
+    .from("pager_stories")
+    .insert([{ username, type:"text", content }]);
+
+  if(error){
+    alert("Story error: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  closeCreateStory();
+  await loadStories();
+  toast("Story published");
+}
+
+async function createPhotoStory(){
+  const fileInput = document.getElementById("storyPhotoInput");
+  const file = fileInput && fileInput.files && fileInput.files[0];
+
+  if(!file){
+    alert("Choose photo first");
+    return;
+  }
+
+  if(!file.type.startsWith("image/")){
+    alert("Only images are supported");
+    return;
+  }
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const safeName = Date.now() + "_" + Math.random().toString(36).slice(2) + "." + ext;
+  const path = username + "/" + safeName;
+
+  const { error: uploadError } = await db.storage
+    .from("chat-images")
+    .upload(path, file, {
+      cacheControl:"3600",
+      upsert:false
+    });
+
+  if(uploadError){
+    alert("Photo upload error: " + uploadError.message);
+    console.error(uploadError);
+    return;
+  }
+
+  const { data } = db.storage
+    .from("chat-images")
+    .getPublicUrl(path);
+
+  const { error } = await db
+    .from("pager_stories")
+    .insert([{ username, type:"photo", content:data.publicUrl }]);
+
+  if(error){
+    alert("Story error: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  closeCreateStory();
+  await loadStories();
+  toast("Photo story published");
+}
+
+function openStoryViewer(storyId){
+  const index = storiesCache.findIndex(s => s.id === storyId);
+  currentStoryIndex = index >= 0 ? index : 0;
+  renderCurrentStory();
+  document.getElementById("storyModal").style.display = "flex";
+}
+
+function closeStoryViewer(){
+  document.getElementById("storyModal").style.display = "none";
+}
+
+function renderCurrentStory(){
+  if(!storiesCache.length) return;
+
+  if(currentStoryIndex < 0) currentStoryIndex = storiesCache.length - 1;
+  if(currentStoryIndex >= storiesCache.length) currentStoryIndex = 0;
+
+  const story = storiesCache[currentStoryIndex];
+
+  document.getElementById("storyViewerName").textContent = story.username;
+  document.getElementById("storyViewerTime").textContent = new Date(story.created_at).toLocaleString();
+
+  const content = document.getElementById("storyViewerContent");
+
+  if(story.type === "photo"){
+    content.innerHTML = `<img src="${escapeHtml(story.content)}" alt="story">`;
+  }else{
+    content.innerHTML = `<div class="story-text">${escapeHtml(story.content)}</div>`;
+  }
+
+  const del = document.getElementById("deleteStoryBtn");
+  if(del) del.style.display = story.username === username ? "inline-block" : "none";
+}
+
+function nextStory(){
+  currentStoryIndex++;
+  renderCurrentStory();
+}
+
+function prevStory(){
+  currentStoryIndex--;
+  renderCurrentStory();
+}
+
+async function deleteCurrentStory(){
+  if(!storiesCache.length) return;
+
+  const story = storiesCache[currentStoryIndex];
+
+  if(story.username !== username){
+    return;
+  }
+
+  const { error } = await db
+    .from("pager_stories")
+    .delete()
+    .eq("id", story.id)
+    .eq("username", username);
+
+  if(error){
+    alert("Delete story error: " + error.message);
+    console.error(error);
+    return;
+  }
+
+  await loadStories();
+  closeStoryViewer();
+  toast("Story deleted");
 }
 
 async function getUnreadCounts(){
@@ -4597,6 +4968,38 @@ function addEmoji(e){
       <button id="userCardFriendBtn" onclick="friendFromUserCard()">Add friend</button>
       <button class="danger" id="userCardBlockBtn" onclick="toggleBlockFromUserCard()">Block</button>
       <button class="secondary" id="userCardCloseBtn" onclick="closeUserCard()">Close</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="story-modal" id="storyModal">
+  <div class="story-box">
+    <div class="story-header">
+      <div>
+        <div class="user-name" id="storyViewerName">Story</div>
+        <div class="small" id="storyViewerTime"></div>
+      </div>
+      <button class="secondary" onclick="closeStoryViewer()">✕</button>
+    </div>
+    <div class="story-content" id="storyViewerContent"></div>
+    <div class="story-actions">
+      <button class="secondary" onclick="prevStory()">←</button>
+      <button class="secondary" onclick="nextStory()">→</button>
+      <button class="danger" id="deleteStoryBtn" style="display:none" onclick="deleteCurrentStory()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="story-create-modal" id="storyCreateModal">
+  <div class="story-create-box">
+    <h2>Create story</h2>
+    <textarea id="storyTextInput" placeholder="Write a story..."></textarea>
+    <input type="file" id="storyPhotoInput" accept="image/*">
+    <div class="story-actions">
+      <button onclick="createTextStory()">Text story</button>
+      <button onclick="createPhotoStory()">Photo story</button>
+      <button class="secondary" onclick="closeCreateStory()">Close</button>
     </div>
   </div>
 </div>
