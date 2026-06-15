@@ -683,6 +683,52 @@ const THEME_VALUES = {
 };
 
 applyTheme(localStorage.getItem("telegrom_theme") || "dark");
+  checkLanguageScreen();
+
+function checkLanguageScreen(){
+  const saved = localStorage.getItem("telegrom_language");
+
+  if(saved){
+    currentLanguage = saved;
+    setTimeout(() => {
+      const el = document.getElementById("languageScreen");
+      if(el) el.style.display = "none";
+    }, 100);
+  }
+}
+
+function setLanguage(lang){
+  currentLanguage = lang;
+  localStorage.setItem("telegrom_language", lang);
+
+  document.getElementById("languageScreen").style.display = "none";
+
+  applyLanguage();
+}
+
+function applyLanguage(){
+
+  if(currentLanguage === "en"){
+    document.querySelector("#authBox h2").textContent = "Login to Telegrom";
+    document.getElementById("emailInput").placeholder = "Email";
+    document.getElementById("passwordInput").placeholder = "Password";
+    document.getElementById("nicknameInput").placeholder = "Nickname";
+  }
+
+  if(currentLanguage === "ru"){
+    document.querySelector("#authBox h2").textContent = "Вход в Telegrom";
+    document.getElementById("emailInput").placeholder = "Email";
+    document.getElementById("passwordInput").placeholder = "Пароль";
+    document.getElementById("nicknameInput").placeholder = "Ник";
+  }
+
+  if(currentLanguage === "pl"){
+    document.querySelector("#authBox h2").textContent = "Logowanie do Telegrom";
+    document.getElementById("emailInput").placeholder = "Email";
+    document.getElementById("passwordInput").placeholder = "Hasło";
+    document.getElementById("nicknameInput").placeholder = "Nick";
+  }
+}
 init();
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -916,6 +962,7 @@ async function saveOrUpdateUser(){
 }
 
 async function startApp(){
+  applyLanguage();
   document.getElementById("authBox").style.display = "none";
   document.getElementById("mainBox").style.display = "flex";
   document.getElementById("logoutBtn").style.display = "inline-block";
