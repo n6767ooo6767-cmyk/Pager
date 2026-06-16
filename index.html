@@ -4302,13 +4302,16 @@ function createPeerConnection(){
   };
 
   pc.oniceconnectionstatechange = () => {
-    const status = document.getElementById("callStatus");
-    if(status){
-      status.textContent = "ICE: " + pc.iceConnectionState;
-    }
     console.log("ICE state:", pc.iceConnectionState);
-  };
+};
 
+pc.onconnectionstatechange = () => {
+    console.log("Connection state:", pc.connectionState);
+};
+
+pc.onicecandidateerror = (e) => {
+    console.error("ICE ERROR", e);
+};
   pc.onconnectionstatechange = () => {
     if(pc.connectionState === "connected"){
       document.getElementById("callStatus").textContent = "Call connected";
